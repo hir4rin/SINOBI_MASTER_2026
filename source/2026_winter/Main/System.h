@@ -1,0 +1,126 @@
+﻿#pragma once
+#include <unordered_map>
+//#include "Sound/SoundManager.h"
+#include <memory>
+
+class BattleManager;
+
+
+//非同期ロードリストの種類//ここ治す
+enum class AsyncData : int
+{
+	//プレイヤー
+	PlayerModel,
+	PlayerAttackModel,							
+	PlayerWeaponModel,
+	PlayerWingModel,
+	PlayerEffectSkill,
+	PlayerEffectSkill2 = 5,
+	PlayerEffectSkill3,
+	PlayerHitEffect,
+	PlayerSwordHitEffect,
+	PlayerSwordHitEffect2,
+	PlayerDamageEffect,
+	JumpAttackFootEffect,
+	//敵
+	EnemyModel,
+	EnemyHitEffect,
+	EnemyHitEffectUlt,
+	EnemyPartLeftArmModel,//部位破壊で落ちる左腕
+	EnemyPartHeadModel,//部位破壊で落ちる頭(ヘルメット)
+	EnemyGunnerModel,
+	EnemyGunnerWeaponModel,//ガンナーの銃
+	EnemyGunnerPartLeftArmModel,//ガンナーの部位破壊で落ちる左腕(盾なし)
+	EnemyBazookaWeaponModel,//バズーカ兵のRPG7
+	//ボス
+	BossModel,
+	BossAttackHadouEffect,
+	BossAttackFireEffect,
+	BossSummonEffect,
+	//マスコット
+	MascotModel,
+	//ステージ
+	TitleStageModel,
+	StageModel,
+	StageModelCollider,
+	DemoStageModel,//デモステージ(UnityのDemoStageBuilderで生成)
+	AreaWallEffect,
+	WallBreakEffect,
+	//デバッグ
+	DebugGhostDashEffect,//スキルエフェクト確認用(F5キーで再生)
+	DebugGhostDash3DEffect,//スキルエフェクト確認用(F6キーで再生)
+	GhostSkill3FallEffect,//スキル3の落下中の分身と残像//プレイヤーに追従させる
+	GhostSkill3ImpactEffect,//スキル3の着地の分身と閃光
+	BloodWingEffect,//必殺技状態の黒い片翼//必殺技状態の間プレイヤーの背中に追従させる
+	PlayerUltWeaponModel,//必殺技(PlayerStateUlt)中だけ持たせる刀身の長い刀
+	//敵が斬られたときの血しぶき(3パターンからランダムで再生する)
+	BloodSplashEffectA,//横(+Z)に噴き出す
+	BloodSplashEffectB,//真上に噴き上がる
+	BloodSplashEffectC,//横に低く扇状に広がる(液体多め)
+	BloodSplashEffectWhite,//必殺技中の白い血しぶき(パターンBの白い版//奥側に多く飛び散る)
+	Goal,
+};
+
+class System
+{
+private:
+	//コンストラクタとデストラクタをプライベートにして、シングルトンパターンを実装
+	System() = default;
+	virtual ~System() = default;
+	//コピーコンストラクタと代入演算子を削除して、シングルトンのインスタンスが複製されないようにする
+	System(const System&) = delete;
+	System& operator=(const System&) = delete;
+public:
+	//シングルトンインスタンスを取得
+	static System& GetInstance()
+	{
+		static System instance;
+		return instance;
+	}
+
+	/// <summary>
+	/// 読み込んだモデル・エフェクトを解放する(DxLib_Endより前に呼ぶ)
+	/// </summary>
+	void Terminate();
+
+	void SetTimeScale(float scale) { timeScale = scale; }
+	float GetTimeScale() const { return timeScale; }
+	/// <summary>
+	/// 時間の流れともとに戻るまでのフレーム数を設定する関数
+	/// </summary>
+	/// <param name="timescale">時間の流れ=通常時が1.0f</param>
+	/// <param name="frames">通常時に戻るまでのframe数</param>
+	void SetTimeScaleForFrames(float timescale, int frames)
+	{
+		timeScale = timescale;//時間のスケールを設定する
+		m_frameCount = frames;//フレームカウントを設定する
+	}
+
+	/// <summary>
+	/// モデル・エフェクトを非同期で読み込み、ハンドルを保存する
+	/// </summary>
+	/// <note>戻った時点では読み込みが終わっていないので、GetASyncLoadNum()が0になるまで待ってから使う</note>
+	void LoadAll();
+	int GetHandle(AsyncData key) { return m_asyncHandles[key]; }
+
+	void Update();
+	//バトルマネージャー
+	void SetBattleMgr(std::weak_ptr<BattleManager> mgr) { m_battleMgr = mgr; }
+	std::shared_ptr<BattleManager> GetBattleMgr();
+
+	//SoundManager& GetSoundManager() { return m_soundManager; }
+
+private:
+	//時間の管理
+	float timeScale = 1.0f;//時間のスケール//1.0fなら通常の時間の流れ//0.5fなら半分の速さ//2.0fなら2倍の速さ
+
+	//いじった時間をもとに戻すためのフレーム
+	int m_frameCount = -1;//フレームカウント//ゲームが開始してからのフレーム数//0から始まる
+
+	std::weak_ptr<BattleManager> m_battleMgr;//バトルマネージャー
+
+	std::unordered_map<AsyncData, int> m_asyncHandles; //非同期ロードのハンドルを保持するマップ
+
+	//SoundManager m_soundManager;//サウンドマネージャー//GetSoundManager()経由でPlayBgm等を呼ぶ
+};
+

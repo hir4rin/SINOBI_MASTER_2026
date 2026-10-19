@@ -1,0 +1,107 @@
+﻿#pragma once
+#include <DxLib.h>
+#include "Easing.h"
+class Vector2;
+
+//OrbitLerpで水平にどちら向きに回すか
+enum class OrbitDirection
+{
+	Shortest,        //最短側(基本はこれ)
+	Clockwise,       //真上(+Y)から見て時計回り(+Z→+Xの向き)
+	CounterClockwise //真上(+Y)から見て反時計回り(+Z→-Xの向き)
+};
+
+class Vector3
+{
+public:
+	Vector3();
+	Vector3(float x, float y, float z);
+	Vector3(VECTOR vec);
+	virtual ~Vector3();
+	/// <summary>
+	/// ベクトルの大きさを返す
+	/// </summary>
+	/// <returns></returns>
+	float Magnitude()const;
+
+	/// <summary>
+	/// ベクトルの大きさの2乗を返す
+	/// </summary>
+	/// <returns></returns>
+	float sqMagnitude()const;
+
+	/// <summary>
+	/// 正規化(大きさを1にする)
+	/// </summary>
+	/// <returns></returns>
+	Vector3 Normalize() const;
+
+	/// <summary>
+	/// 内積
+	/// </summary>
+	/// <param name="right"></param>
+	/// <returns></returns>
+	float Dot(const Vector3& right)const;
+
+	/// <summary>
+	/// 外積
+	/// </summary>
+	/// <param name="right"></param>
+	/// <returns></returns>
+	Vector3 Cross(const Vector3& right)const;
+	/// <summary>
+	/// 2次元空間のベクトルは|a||b|sinθを返す
+	/// XとZを使う
+	/// </summary>
+	/// <returns></returns>
+	float Cross2DXZ(const Vector3& right)const;
+
+	/// <summary>
+	/// DxLibのベクトルに変換します
+	/// </summary>
+	/// <returns></returns>
+	VECTOR ToDxLibVector()const;
+
+	/// <summary>
+	/// DxLibのベクトルからVecotr3に変換します
+	/// </summary>
+	/// <returns></returns>
+	static Vector3 FromDxLibVector(const VECTOR& vec);
+
+	//lerp
+	static Vector3 Lerp(const Vector3& start, const Vector3& end, float t);
+	//Slerp//球面線形補間//ベクトルの補完//大きさが1のものを入れる
+	static Vector3 Slerp(const Vector3& start, const Vector3& end, float t);
+
+	//イージング付きLerp//tは0~1の経過割合。EaseOutBackなどは内部で1.0を超えて行き過ぎることがある
+	static Vector3 EaseLerp(const Vector3& start, const Vector3& end, float t, EasingMode mode, float power = 1.0f);
+	//イージング付きSlerp//大きさが1のものを入れる
+	static Vector3 EaseSlerp(const Vector3& start, const Vector3& end, float t, EasingMode mode, float power = 1.0f);
+
+	//Y軸まわり(水平)の回転で方向を補間する//水平角は最短側で補間し、仰角はlerp//大きさが1のものを入れる
+	//Slerpは仰角があると真上を通る経路になるので、地面基準のカメラの回り込みにはこちらを使う
+	//dirで回す向きを指定できる(Shortest以外は最短でなくても指定側に回る)
+	static Vector3 OrbitLerp(const Vector3& start, const Vector3& end, float t, OrbitDirection dir = OrbitDirection::Shortest);
+	//イージング付きOrbitLerp//大きさが1のものを入れる
+	static Vector3 EaseOrbitLerp(const Vector3& start, const Vector3& end, float t, EasingMode mode, float power = 1.0f, OrbitDirection dir = OrbitDirection::Shortest);
+
+	//演算子オーバーロード
+	Vector3 operator+(const Vector3& right)const;
+	Vector3 operator-(const Vector3& right)const;
+	Vector3 operator*(const float& right)const;
+	Vector3 operator/(const float& right)const;	
+	Vector3 operator=(const float& right)const;
+	Vector3 operator+=(const Vector3& right);
+	Vector3 operator-=(const Vector3& right);
+	Vector3 operator*=(const float& right);
+	Vector3 operator/=(const float& right);
+public:
+	float x, y, z;
+};
+
+//float * Vector3 用(左辺がfloatなのでメンバ関数では書けない)
+inline Vector3 operator*(const float& left, const Vector3& right)
+{
+	return right * left;
+}
+

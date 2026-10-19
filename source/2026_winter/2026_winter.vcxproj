@@ -1,0 +1,438 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{44790869-b1d8-454f-b0d5-038bc18852bc}</ProjectGuid>
+    <RootNamespace>_2026_winter</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);_DEBUG</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>../EffekseerForDXLib;$(ProjectDir);$(ProjectDir)imgui;$(ProjectDir)imgui/backends</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>../EffekseerForDXLib</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>../EffekseerForDXLib;$(ProjectDir);$(ProjectDir)imgui;$(ProjectDir)imgui/backends</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>../EffekseerForDXLib</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions);_DEBUG</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>../EffekseerForDXLib;$(ProjectDir);$(ProjectDir)imgui;$(ProjectDir)imgui/backends</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>../EffekseerForDXLib</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>../EffekseerForDXLib;$(ProjectDir);$(ProjectDir)imgui;$(ProjectDir)imgui/backends</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>../EffekseerForDXLib</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Character\Animation.cpp" />
+    <ClCompile Include="Main\Application.cpp" />
+    <ClCompile Include="Battle\AttackTokenManager.cpp" />
+    <ClCompile Include="Battle\BattleManager.cpp" />
+    <ClCompile Include="Battle\PhaseManager.cpp" />
+    <ClCompile Include="Camera\Camera.cpp" />
+    <ClCompile Include="Camera\CameraManager.cpp" />
+    <ClCompile Include="Camera\CameraState\BossAppearCamera.cpp" />
+    <ClCompile Include="Camera\CameraState\CameraStateBase.cpp" />
+    <ClCompile Include="Camera\CameraState\FinishingFirstCamera.cpp" />
+    <ClCompile Include="Camera\CameraState\FinishingSecondCamera.cpp" />
+    <ClCompile Include="Camera\CameraState\LockOnCameraState.cpp" />
+    <ClCompile Include="Camera\CameraState\PlayerFollowCamera.cpp" />
+    <ClCompile Include="Camera\CameraState\Assasin\AssasinCamera.cpp" />
+    <ClCompile Include="Camera\CameraState\Assasin\AssasinCameraStart.cpp" />
+    <ClCompile Include="Camera\CameraState\ResultCameraState.cpp" />
+    <ClCompile Include="Camera\CameraState\Stage1FazeCamera.cpp" />
+    <ClCompile Include="Camera\CameraState\Stage2FazeCamera.cpp" />
+    <ClCompile Include="Camera\CameraState\TitleCameraState.cpp" />
+    <ClCompile Include="Camera\CameraState\UltCameraState.cpp" />
+    <ClCompile Include="Camera\CameraState\UltStartCamera.cpp" />
+    <ClCompile Include="Camera\LockOnManager.cpp" />
+    <ClCompile Include="Collision\AttackCol.cpp" />
+    <ClCompile Include="Character\CharacterBase.cpp" />
+    <ClCompile Include="Character\Enemy\EnemyBase.cpp" />
+    <ClCompile Include="Collision\HitCol.cpp" />
+    <ClCompile Include="Collision\JustDodgeCol.cpp" />
+    <ClCompile Include="Character\Player\State\Attack\PlayerStateAttack.cpp" />
+    <ClCompile Include="Character\Player\State\Attack\PlayerStateAttackBase.cpp" />
+    <ClCompile Include="Character\Player\State\Attack\PlayerStateDashAttack.cpp" />
+    <ClCompile Include="Character\Player\State\Attack\PlayerStateGuardBreakChance.cpp" />
+    <ClCompile Include="Character\Player\State\Attack\PlayerStateGuardBreakAttack.cpp" />
+    <ClCompile Include="Character\Player\State\Attack\PlayerStateAttackLanding.cpp" />
+    <ClCompile Include="Character\Player\State\Attack\PlayerStateSkillAttack.cpp" />
+    <ClCompile Include="Character\Player\State\Attack\PlayerStateUlt.cpp" />
+    <ClCompile Include="Character\Player\Player.cpp" />
+    <ClCompile Include="Character\Player\PlayerState.cpp" />
+    <ClCompile Include="Character\Player\State\Defence\PlayerStateDie.cpp" />
+    <ClCompile Include="Character\Player\State\Defence\PlayerStateHit.cpp" />
+    <ClCompile Include="Character\Player\State\Defence\PlayerAttackParried.cpp" />
+    <ClCompile Include="Character\Player\State\Locomotion\PlayerStateFall.cpp" />
+    <ClCompile Include="Character\Player\State\Locomotion\PlayerStateIdle.cpp" />
+    <ClCompile Include="Character\Player\State\Locomotion\PlayerStateJump.cpp" />
+    <ClCompile Include="Character\Player\State\Locomotion\PlayerStateMove.cpp" />
+    <ClCompile Include="Character\Player\State\Locomotion\PlayerStateFastRun.cpp" />
+    <ClCompile Include="Character\Player\State\Locomotion\PlayerStateResultMove.cpp" />
+    <ClCompile Include="Character\Player\State\Locomotion\PlayerStateWallRun.cpp" />
+    <ClCompile Include="Character\Player\State\Locomotion\PlayerStateWallKick.cpp" />
+    <ClCompile Include="Character\Player\State\Locomotion\PlayerStateWallStay.cpp" />
+    <ClCompile Include="Character\Player\State\Locomotion\PlayerStateWallRunKick.cpp" />
+    <ClCompile Include="Character\Player\PlayerWeapon.cpp" />
+    <ClCompile Include="Collision\CapsuleShape.cpp" />
+    <ClCompile Include="Collision\BoxShape.cpp" />
+    <ClCompile Include="Collision\Collider.cpp" />
+    <ClCompile Include="Collision\ColliderShape.cpp" />
+    <ClCompile Include="DataLoader\DataManager.cpp" />
+    <ClCompile Include="Character\Enemy\State\EnemyStateBase.cpp" />
+    <ClCompile Include="Character\Enemy\State\Locomotion\EnemyIdle.cpp" />
+    <ClCompile Include="Character\Enemy\EnemySwordman.cpp" />
+    <ClCompile Include="Character\Enemy\EnemyGunner.cpp" />
+    <ClCompile Include="Character\Enemy\EnemyGunnerWeapon.cpp" />
+    <ClCompile Include="Character\Enemy\EnemyBazooka.cpp" />
+    <ClCompile Include="Character\Enemy\EnemyBazookaWeapon.cpp" />
+    <ClCompile Include="Character\Enemy\State\Defence\EnemyGuard.cpp" />
+    <ClCompile Include="Character\Enemy\State\Defence\EnemyGuardBreak.cpp" />
+    <ClCompile Include="Character\Enemy\EnemyPart.cpp" />
+    <ClCompile Include="Character\Enemy\State\Locomotion\EnemyChase.cpp" />
+    <ClCompile Include="Character\Enemy\State\Attack\EnemyAttack.cpp" />
+    <ClCompile Include="Character\Enemy\State\Attack\EnemyAttackPre.cpp" />
+    <ClCompile Include="Character\Enemy\State\Attack\EnemyAttackEnd.cpp" />
+    <ClCompile Include="Character\Enemy\State\Defence\EnemyParry.cpp" />
+    <ClCompile Include="Character\Enemy\State\Locomotion\EnemyBack.cpp" />
+    <ClCompile Include="Character\Enemy\State\Locomotion\EnemyCaution.cpp" />
+    <ClCompile Include="Character\Enemy\State\Locomotion\EnemyPatrol.cpp" />
+    <ClCompile Include="Character\Enemy\State\Hit\EnemyKnockBack.cpp" />
+    <ClCompile Include="Character\Enemy\State\Hit\EnemyKnockDown.cpp" />
+    <ClCompile Include="Character\Enemy\State\Hit\EnemyAirStay.cpp" />
+    <ClCompile Include="Character\Enemy\State\Hit\EnemyAirFall.cpp" />
+    <ClCompile Include="Character\Enemy\State\Hit\EnemyHitDrop.cpp" />
+    <ClCompile Include="Character\Enemy\State\Hit\EnemyDie.cpp" />
+    <ClCompile Include="Character\Enemy\State\Hit\EnemyVanish.cpp" />
+    <ClCompile Include="Character\Enemy\State\Hit\EnemyHitGround.cpp" />
+    <ClCompile Include="Character\Enemy\State\Hit\EnemyHitAir.cpp" />
+    <ClCompile Include="Character\Enemy\EnemyManager.cpp" />
+    <ClCompile Include="Character\Enemy\State\Hit\EnemyAssasined.cpp" />
+    <ClCompile Include="Character\Enemy\State\Hit\EnemyPartBrokenKilled.cpp" />
+    <ClCompile Include="Main\Game.cpp" />
+    <ClCompile Include="Main\IDManager.cpp" />
+    <ClCompile Include="Main\Input.cpp" />
+    <ClCompile Include="Main\main.cpp" />
+    <ClCompile Include="Collision\CollisionChecker.cpp" />
+    <ClCompile Include="Collision\CollisionManager.cpp" />
+    <ClCompile Include="Render\EffectManager.cpp" />
+    <ClCompile Include="Render\ModelShaderManager.cpp" />
+    <ClCompile Include="Collision\FixNextPosition.cpp" />
+    <ClCompile Include="Math\Matrix4x4.cpp" />
+    <ClCompile Include="Math\Quaternion.cpp" />
+    <ClCompile Include="Math\Vector3.cpp" />
+    <ClCompile Include="Collision\RigidBody.cpp" />
+    <ClCompile Include="Character\Player\State\Defence\PlayerStateDodge.cpp" />
+    <ClCompile Include="Character\Player\State\Defence\PlayerStateJustDodge.cpp" />
+    <ClCompile Include="Character\Player\State\Attack\PlayerStateAssasin.cpp" />
+    <ClCompile Include="Character\Player\State\Attack\PlayerStatePartBrokenKill.cpp" />
+    <ClCompile Include="Camera\CameraState\PartBroken\PartBrokenACamera.cpp" />
+    <ClCompile Include="Camera\CameraState\PartBroken\PartBrokenACameraStart.cpp" />
+    <ClCompile Include="Camera\CameraState\PartBroken\PartBrokenACameraEnd.cpp" />
+    <ClCompile Include="Camera\CameraState\PartBroken\PartBrokenBCameraStart.cpp" />
+    <ClCompile Include="Camera\CameraState\PartBroken\PartBrokenBCamera.cpp" />
+    <ClCompile Include="Scene\SceneMain.cpp" />
+    <ClCompile Include="Main\imguiApp.cpp" />
+    <ClCompile Include="imgui\imgui.cpp" />
+    <ClCompile Include="imgui\imgui_draw.cpp" />
+    <ClCompile Include="imgui\imgui_tables.cpp" />
+    <ClCompile Include="imgui\imgui_widgets.cpp" />
+    <ClCompile Include="imgui\backends\imgui_impl_win32.cpp" />
+    <ClCompile Include="imgui\backends\imgui_impl_dx11.cpp" />
+    <ClCompile Include="Scene\PauseScene.cpp" />
+    <ClCompile Include="Scene\StageSelectScene.cpp" />
+    <ClCompile Include="Scene\ResultScene.cpp" />
+    <ClCompile Include="Scene\Scene.cpp" />
+    <ClCompile Include="Scene\SceneController.cpp" />
+    <ClCompile Include="Collision\SphereShape.cpp" />
+    <ClCompile Include="Render\BloodKillFog.cpp" />
+    <ClCompile Include="Stage\SkyBox.cpp" />
+    <ClCompile Include="Stage\Stage.cpp" />
+    <ClCompile Include="Stage\WallZone\WallZone.cpp" />
+    <ClCompile Include="Stage\WallZone\WallZoneEditor.cpp" />
+    <ClCompile Include="Stage\Phase\PhaseAreaEditor.cpp" />
+    <ClCompile Include="Main\System.cpp" />
+    <ClCompile Include="UI\FontManager.cpp" />
+    <ClCompile Include="UI\UIBase.cpp" />
+    <ClCompile Include="UI\UIManager.cpp" />
+    <ClCompile Include="UI\KessatsuUI.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Character\Animation.h" />
+    <ClInclude Include="Main\Application.h" />
+    <ClInclude Include="Battle\AttackTokenManager.h" />
+    <ClInclude Include="Battle\BattleManager.h" />
+    <ClInclude Include="Battle\PhaseManager.h" />
+    <ClInclude Include="Camera\Camera.h" />
+    <ClInclude Include="Camera\CameraManager.h" />
+    <ClInclude Include="Camera\CameraState\BossAppearCamera.h" />
+    <ClInclude Include="Camera\CameraState\CameraStateBase.h" />
+    <ClInclude Include="Camera\CameraState\FinishingFirstCamera.h" />
+    <ClInclude Include="Camera\CameraState\FinishingSecondCamera.h" />
+    <ClInclude Include="Camera\CameraState\LockOnCameraState.h" />
+    <ClInclude Include="Camera\CameraState\PlayerFollowCamera.h" />
+    <ClInclude Include="Camera\CameraState\Assasin\AssasinCamera.h" />
+    <ClInclude Include="Camera\CameraState\Assasin\AssasinCameraStart.h" />
+    <ClInclude Include="Camera\CameraState\ResultCameraState.h" />
+    <ClInclude Include="Camera\CameraState\Stage1FazeCamera.h" />
+    <ClInclude Include="Camera\CameraState\Stage2FazeCamera.h" />
+    <ClInclude Include="Camera\CameraState\TitleCameraState.h" />
+    <ClInclude Include="Camera\CameraState\UltCameraState.h" />
+    <ClInclude Include="Camera\CameraState\UltStartCamera.h" />
+    <ClInclude Include="Camera\LockOnManager.h" />
+    <ClInclude Include="Collision\AttackCol.h" />
+    <ClInclude Include="Collision\SkillAttackCol.h" />
+    <ClInclude Include="Character\CharacterBase.h" />
+    <ClInclude Include="Character\Enemy\EnemyBase.h" />
+    <ClInclude Include="Collision\HitCol.h" />
+    <ClInclude Include="Collision\JustDodgeCol.h" />
+    <ClInclude Include="Character\Player\State\Attack\PlayerStateAttack.h" />
+    <ClInclude Include="Character\Player\State\Attack\PlayerStateAttackBase.h" />
+    <ClInclude Include="Character\Player\State\Attack\PlayerStateDashAttack.h" />
+    <ClInclude Include="Character\Player\State\Attack\PlayerStateGuardBreakChance.h" />
+    <ClInclude Include="Character\Player\State\Attack\PlayerStateGuardBreakAttack.h" />
+    <ClInclude Include="Character\Player\State\Attack\PlayerStateAttackLanding.h" />
+    <ClInclude Include="Character\Player\State\Attack\PlayerStateSkillAttack.h" />
+    <ClInclude Include="Character\Player\State\Attack\PlayerStateUlt.h" />
+    <ClInclude Include="Character\Player\Player.h" />
+    <ClInclude Include="Character\Player\PlayerEnums.h" />
+    <ClInclude Include="Character\Player\PlayerState.h" />
+    <ClInclude Include="Character\Player\State\Defence\PlayerStateDie.h" />
+    <ClInclude Include="Character\Player\State\Defence\PlayerStateHit.h" />
+    <ClInclude Include="Character\Player\State\Defence\PlayerAttackParried.h" />
+    <ClInclude Include="Character\Player\State\Locomotion\PlayerStateFall.h" />
+    <ClInclude Include="Character\Player\State\Locomotion\PlayerStateIdle.h" />
+    <ClInclude Include="Character\Player\State\Locomotion\PlayerStateJump.h" />
+    <ClInclude Include="Character\Player\State\Locomotion\PlayerStateMove.h" />
+    <ClInclude Include="Character\Player\State\Locomotion\PlayerStateFastRun.h" />
+    <ClInclude Include="Character\Player\State\Locomotion\PlayerStateResultMove.h" />
+    <ClInclude Include="Character\Player\State\Locomotion\PlayerStateWallRun.h" />
+    <ClInclude Include="Character\Player\State\Locomotion\PlayerStateWallKick.h" />
+    <ClInclude Include="Character\Player\State\Locomotion\PlayerStateWallStay.h" />
+    <ClInclude Include="Character\Player\State\Locomotion\PlayerStateWallRunKick.h" />
+    <ClInclude Include="Character\Player\PlayerWeapon.h" />
+    <ClInclude Include="Collision\CapsuleShape.h" />
+    <ClInclude Include="Collision\BoxShape.h" />
+    <ClInclude Include="Collision\Collider.h" />
+    <ClInclude Include="Collision\ColliderShape.h" />
+    <ClInclude Include="Collision\ColliderSummery.h" />
+    <ClInclude Include="DataLoader\AnimData.h" />
+    <ClInclude Include="DataLoader\DataManager.h" />
+    <ClInclude Include="Character\Enemy\State\EnemyStateBase.h" />
+    <ClInclude Include="Character\Enemy\State\Locomotion\EnemyIdle.h" />
+    <ClInclude Include="Character\Enemy\EnemySwordman.h" />
+    <ClInclude Include="Character\Enemy\EnemyGunner.h" />
+    <ClInclude Include="Character\Enemy\EnemyGunnerWeapon.h" />
+    <ClInclude Include="Character\Enemy\EnemyBazooka.h" />
+    <ClInclude Include="Character\Enemy\EnemyBazookaWeapon.h" />
+    <ClInclude Include="Character\Enemy\State\Defence\EnemyGuard.h" />
+    <ClInclude Include="Character\Enemy\State\Defence\EnemyGuardBreak.h" />
+    <ClInclude Include="Character\Enemy\EnemyPart.h" />
+    <ClInclude Include="Character\Enemy\State\Locomotion\EnemyChase.h" />
+    <ClInclude Include="Character\Enemy\State\Attack\EnemyAttack.h" />
+    <ClInclude Include="Character\Enemy\State\Attack\EnemyAttackPre.h" />
+    <ClInclude Include="Character\Enemy\State\Attack\EnemyAttackEnd.h" />
+    <ClInclude Include="Character\Enemy\State\Defence\EnemyParry.h" />
+    <ClInclude Include="Character\Enemy\State\Locomotion\EnemyBack.h" />
+    <ClInclude Include="Character\Enemy\State\Locomotion\EnemyCaution.h" />
+    <ClInclude Include="Character\Enemy\State\Locomotion\EnemyPatrol.h" />
+    <ClInclude Include="Character\Enemy\State\Hit\EnemyKnockBack.h" />
+    <ClInclude Include="Character\Enemy\State\Hit\EnemyKnockDown.h" />
+    <ClInclude Include="Character\Enemy\State\Hit\EnemyAirStay.h" />
+    <ClInclude Include="Character\Enemy\State\Hit\EnemyAirFall.h" />
+    <ClInclude Include="Character\Enemy\State\Hit\EnemyHitDrop.h" />
+    <ClInclude Include="Character\Enemy\State\Hit\EnemyDie.h" />
+    <ClInclude Include="Character\Enemy\State\Hit\EnemyVanish.h" />
+    <ClInclude Include="Character\Enemy\State\Hit\EnemyHitGround.h" />
+    <ClInclude Include="Character\Enemy\State\Hit\EnemyHitAir.h" />
+    <ClInclude Include="Character\Enemy\EnemyManager.h" />
+    <ClInclude Include="Character\Enemy\State\Hit\EnemyAssasined.h" />
+    <ClInclude Include="Character\Enemy\State\Hit\EnemyPartBrokenKilled.h" />
+    <ClInclude Include="Main\Game.h" />
+    <ClInclude Include="Main\IDManager.h" />
+    <ClInclude Include="Main\Input.h" />
+    <ClInclude Include="Collision\CollisionChecker.h" />
+    <ClInclude Include="Collision\CollisionManager.h" />
+    <ClInclude Include="Render\EffectManager.h" />
+    <ClInclude Include="Render\ModelShaderManager.h" />
+    <ClInclude Include="Collision\FixNextPosition.h" />
+    <ClInclude Include="Math\Matrix4x4.h" />
+    <ClInclude Include="Math\Quaternion.h" />
+    <ClInclude Include="Math\Vector3.h" />
+    <ClInclude Include="Collision\RigidBody.h" />
+    <ClInclude Include="Character\Player\State\Defence\PlayerStateDodge.h" />
+    <ClInclude Include="Character\Player\State\Defence\PlayerStateJustDodge.h" />
+    <ClInclude Include="Character\Player\State\Attack\PlayerStateAssasin.h" />
+    <ClInclude Include="Character\Player\State\Attack\PlayerStatePartBrokenKill.h" />
+    <ClInclude Include="Camera\CameraState\PartBroken\PartBrokenACamera.h" />
+    <ClInclude Include="Camera\CameraState\PartBroken\PartBrokenACameraStart.h" />
+    <ClInclude Include="Camera\CameraState\PartBroken\PartBrokenACameraEnd.h" />
+    <ClInclude Include="Camera\CameraState\PartBroken\PartBrokenBCameraStart.h" />
+    <ClInclude Include="Camera\CameraState\PartBroken\PartBrokenBCamera.h" />
+    <ClInclude Include="Scene\SceneMain.h" />
+    <ClInclude Include="Main\imguiApp.h" />
+    <ClInclude Include="imgui\imgui.h" />
+    <ClInclude Include="imgui\imgui_internal.h" />
+    <ClInclude Include="imgui\imconfig.h" />
+    <ClInclude Include="imgui\imstb_rectpack.h" />
+    <ClInclude Include="imgui\imstb_textedit.h" />
+    <ClInclude Include="imgui\imstb_truetype.h" />
+    <ClInclude Include="imgui\backends\imgui_impl_win32.h" />
+    <ClInclude Include="imgui\backends\imgui_impl_dx11.h" />
+    <ClInclude Include="Scene\PauseScene.h" />
+    <ClInclude Include="Scene\StageSelectScene.h" />
+    <ClInclude Include="Scene\ResultScene.h" />
+    <ClInclude Include="Scene\Scene.h" />
+    <ClInclude Include="Scene\SceneController.h" />
+    <ClInclude Include="Collision\SphereShape.h" />
+    <ClInclude Include="Collision\PolygonShape.h" />
+    <ClInclude Include="Render\BloodKillFog.h" />
+    <ClInclude Include="Stage\SkyBox.h" />
+    <ClInclude Include="Stage\Stage.h" />
+    <ClInclude Include="Stage\WallZone\WallZone.h" />
+    <ClInclude Include="Stage\WallZone\WallZoneData.h" />
+    <ClInclude Include="Stage\Phase\EnemySpawnData.h" />
+    <ClInclude Include="Stage\Phase\PhaseFlowData.h" />
+    <ClInclude Include="Stage\Phase\PhaseAreaData.h" />
+    <ClInclude Include="Stage\Phase\PhaseAreaEditor.h" />
+    <ClInclude Include="Stage\StageInfo.h" />
+    <ClInclude Include="Stage\WallZone\WallZoneEditor.h" />
+    <ClInclude Include="Main\System.h" />
+    <ClInclude Include="UI\FontManager.h" />
+    <ClInclude Include="UI\UIBase.h" />
+    <ClInclude Include="UI\UIManager.h" />
+    <ClInclude Include="UI\KessatsuUI.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 実行時にD3DCompileFromFileでコンパイルするので、ビルドではコンパイルしない(Noneにしておく) -->
+    <None Include="Render\Shader\MV1VertexShader.hlsl" />
+    <None Include="Render\Shader\EnemyBlackPS.hlsl" />
+    <None Include="Render\Shader\VertexShader.h" />
+    <None Include="Render\Shader\DataType.h" />
+    <None Include="Render\Shader\DxShader_Common_D3D11.h" />
+    <None Include="Render\Shader\DxShader_VS_D3D11.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
