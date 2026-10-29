@@ -1,8 +1,11 @@
 ﻿#include "EnemyManager.h"
 #include "EnemyBase.h"
-#include "EnemySwordman.h"
-#include "EnemyGunner.h"
-#include "EnemyBazooka.h"
+#include "Character/Enemy/Swordman/EnemySwordman.h"
+#include "Character/Enemy/Gunner/EnemyGunner.h"
+#include "Character/Enemy/Bazooka/EnemyBazooka.h"
+#include "Character/Enemy/BossPirate/BossEnemyPirateR1.h"
+#include "Character/Enemy/BossPirate/BossEnemyPirateR0.h"
+#include "Character/Enemy/Kingmech/BossEnemyKingmech.h"
 #include "Character/Player/Player.h"
 #include "Main/Input.h"
 #include "Main/System.h"
@@ -119,12 +122,23 @@ void EnemyManager::DebugDraw()
 	}
 }
 
+void EnemyManager::DrawDebugWindows()
+{
+	for (auto& enemy : m_enemies)
+	{
+		if (!enemy->HasDebugWindow())continue;
+		if (enemy->GetIsVanishing())continue;//消えている死体は出さない
+		enemy->DrawDebugWindow();
+	}
+}
+
 void EnemyManager::SpawnEnemy()
 {
 
 	auto enemy = std::make_shared<EnemySwordman>(m_player,Vector3());
 	enemy->Init();
 	enemy->SetPatrolRoute(0);//パトロールルート0を設定
+	enemy->SetIsPlayerFound(false);
 	enemy->SetPatrolState();
 	m_enemies.push_back(enemy);
 }
@@ -140,7 +154,19 @@ void EnemyManager::StartPhase(int phase)
 		if (!enemy)continue;
 		m_enemies.push_back(enemy);
 		m_phaseEnemies.push_back(enemy);
+		//ボスの腕など//親の後ろに並べて、親の後に更新する//フェーズの全滅判定には入れない
+		for (auto& child : enemy->CreateChildEnemies())
+		{
+			m_enemies.push_back(child);
+		}
 	}
+}
+
+void EnemyManager::DebugClearEnemies()
+{
+	m_enemies.clear();
+	m_corpses.clear();
+	m_phaseEnemies.clear();
 }
 
 bool EnemyManager::IsPhaseEnemiesAllDead() const
@@ -168,6 +194,15 @@ std::shared_ptr<EnemyBase> EnemyManager::CreateEnemy(const EnemySpawnData& data)
 	case EnemyType::Bazooka:
 		enemy = std::make_shared<EnemyBazooka>(m_player, data.position);
 		break;
+	case EnemyType::BossEnemyPirateR1:
+		enemy = std::make_shared<BossEnemyPirateR1>(m_player, data.position);
+		break;
+	case EnemyType::BossEnemyPirateR0:
+		enemy = std::make_shared<BossEnemyPirateR0>(m_player, data.position);
+		break;
+	case EnemyType::BossEnemyKingmech:
+		enemy = std::make_shared<BossEnemyKingmech>(m_player, data.position);
+		break;
 	default:
 		return nullptr;
 	}
@@ -181,12 +216,14 @@ std::shared_ptr<EnemyBase> EnemyManager::CreateEnemy(const EnemySpawnData& data)
 		break;//Initで設定済み
 	case EnemyInitialState::Patrol:
 		//ルートが無ければ、その場で見張る
-		if (data.route.empty()) enemy->SetGuardPoint();
+		if (data.route.empty()) enemy->SetWatchPoint();
 		else enemy->SetPatrolPoints(data.route);
+		enemy->SetIsPlayerFound(false);
 		enemy->SetPatrolState();
 		break;
-	case EnemyInitialState::Guard:
-		enemy->SetGuardPoint();
+	case EnemyInitialState::Watch:
+		enemy->SetWatchPoint();
+		enemy->SetIsPlayerFound(false);
 		enemy->SetPatrolState();
 		break;
 	}

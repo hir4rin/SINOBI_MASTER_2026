@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <windows.h>
 #include <vector>
+#include <string>
 #include "Math/Vector3.h"
 #include "Camera/CameraState/CameraStateBase.h"
 
@@ -88,6 +89,8 @@ public:
 	const Vector3& GetOverrideCameraPos()const { return m_camPos; }
 	//上書き用の注視点を返す(同上)
 	const Vector3& GetOverrideCameraTarget()const { return m_camTarget; }
+	//上書き・フォトモード用の視野角を返す(ラジアン)
+	float GetOverrideCameraFov()const { return m_camFovDeg * (DX_PI_F / 180.0f); }
 
 	//カメラアニメーターが再生中かどうかを返す("Execute"ボタンを押してから再生が終わるまでtrue)
 	bool IsCameraAnimatorPlaying()const { return m_isAnimatorPlaying; }
@@ -95,6 +98,9 @@ public:
 	const Vector3& GetAnimatorCameraPos()const { return m_animatorCamPos; }
 	//再生中の補間結果の注視点を返す(同上)
 	const Vector3& GetAnimatorCameraTarget()const { return m_animatorCamTarget; }
+
+	//Shift-JISの文字列(CSVの名前・ソースの日本語)をImGuiで出せるUTF-8に直す
+	static std::string ToUtf8(const std::string& sjis);
 
 	//DxLibのウィンドウプロシージャに割り込ませるためのハンドラ関数
 	//マウス移動・クリック・キー入力などのメッセージが来るたびにWindowsから呼ばれる
@@ -115,6 +121,7 @@ private:
 private:
 	bool m_initialized = false;//Init()済みかどうかのフラグ(二重初期化やUninit漏れによる誤動作を防ぐ)
 	WNDPROC m_prevWndProc = nullptr;//乗っ取る前の、DxLib本来のウィンドウプロシージャ(呼び出しを引き継ぐために保存)
+	ID3D11DeviceContext* m_context = nullptr;//外のウィンドウを描いた後に、DxLibの描画先を戻すために使う
 
 	//デバッグウィンドウの表示/非表示(F2キーでトグル)。
 	//Debugビルドは今まで通りずっと表示された状態から始まり、Releaseビルドは非表示から始まる(F2で初めて使える)
@@ -131,6 +138,7 @@ private:
 	float m_angleHDeg = 0.0f;//注視点を中心にした水平方向の角度(度)
 	float m_angleVDeg = 0.0f;//注視点を中心にした垂直方向の角度(度)
 	float m_distance = 700.0f;//注視点までの距離
+	float m_camFovDeg = 60.0f;//視野角(度)
 
 	std::vector<CameraKeyframe> m_cameraKeyframes;//Camera Animatorで保存したキーフレームの一覧(再生順)
 	int m_selectedKeyframeIndex = -1;//Camera Keyframe Editorで今編集対象になっているキーフレームのindex(-1なら未選択)

@@ -5,12 +5,15 @@
 #include "Collision/SphereShape.h"
 #include "Collision/CollisionManager.h"
 #include <format>
+#include <algorithm>
 
 namespace
 {
+	constexpr float kChainForwardDistance = 1000.0f;//連撃で向き直さない敵の踏み込み先(今の向きの前方)
 }
 
-EnemyAttack::EnemyAttack(std::weak_ptr<EnemyBase> owner):EnemyStateBase(owner)
+EnemyAttack::EnemyAttack(std::weak_ptr<EnemyBase> owner, bool isChain):EnemyStateBase(owner),
+	m_isChain(isChain)
 {
 }
 
@@ -22,12 +25,43 @@ void EnemyAttack::Enter()
 {
 	auto owner = m_owner.lock();
 	if (!owner)return;
+	//落下禁止を有効化
+	owner->SetPreventFall(true);
 	auto player = owner->m_player.lock();
 	if (!player)return;
 
 
 	const auto& node = owner->GetAttackNode(owner->m_currentAttackIndex);
 
+	//連撃の2撃目以降は踏み込み先を決め直す//判定の位置はこの後の向きで決まるので、先にする
+	if (m_isChain)
+	{
+		if (owner->IsChainAttackLookAtPlayer())
+		{
+			//プレイヤーの方を向いて、プレイヤーの位置へ踏み込む
+			owner->m_targetPos = player->GetRigidBody().GetPos();
+			owner->ToPlayerLook();
+		}
+		else
+		{
+			//向きはそのまま//1撃目で通り過ぎた踏み込み先へ戻らないように、前方に置き直す
+			owner->m_targetPos = owner->m_rb.m_pos + owner->GetTargetVec() * kChainForwardDistance;
+		}
+	}
+
+	//踏み込む向きはここで決めて固定する//目標が自分の位置と重なっていたら今の向き
+	m_moveDir = owner->m_targetPos - owner->m_rb.m_pos;
+	m_moveDir.y = 0.0f;
+	if (m_moveDir.Magnitude() > 0.0f)
+	{
+		m_moveDir = m_moveDir.Normalize();
+	}
+	else
+	{
+		m_moveDir = owner->GetTargetVec();
+		m_moveDir.y = 0.0f;
+		m_moveDir = m_moveDir.Normalize();
+	}
 
 	//animationの初期化
 	owner->m_anim.ChangeAnimWithModelHandle(owner->m_modelHandle, owner->GetAnimName(node.animName), false,node.animTimeScale,node.animEndFrame,0.0f,node.blendFrame);
@@ -65,7 +99,11 @@ void EnemyAttack::Update()
 
 	AttackMove();
 
-	if (owner->m_anim.GetNowAnimFrame() >= node.attackFinishFrame)
+	//attackFinishFrameが負(空欄)ならアニメの終わりまで
+	const bool isFinish = (node.attackFinishFrame < 0.0f)
+		? owner->m_anim.GetAnimEndFlag()
+		: owner->m_anim.GetNowAnimFrame() >= node.attackFinishFrame;
+	if (isFinish)
 	{
 		owner->m_attackCoolTime = node.coolTime;//攻撃のクールタイムをリセット
 		owner->ChangeState(owner->NextAfterAttack());
@@ -82,6 +120,10 @@ void EnemyAttack::Exit()
 		m_attackCol->SetLifeTimeLimited();
 		m_attackCol.reset();
 	}
+	auto owner = m_owner.lock();
+	if (!owner)return;
+	//落下禁止を無効化
+	owner->SetPreventFall(false);
 }
 
 void EnemyAttack::DebugDraw()
@@ -93,7 +135,8 @@ std::string EnemyAttack::GetDebugInfo() const
 	auto owner = m_owner.lock();
 	if (!owner)return {};
 	const char* colText = (m_attackCol && m_attackCol->GetIsActive()) ? " 判定ON" : "";
-	return std::format("rate {:.2f}{}", owner->m_anim.GetAnimRate(), colText);
+	const char* chainText = m_isChain ? " 連" : "";
+	return std::format("#{}{} rate {:.2f}{}", owner->m_currentAttackIndex, chainText, owner->m_anim.GetAnimRate(), colText);
 }
 
 void EnemyAttack::AttackMove()
@@ -104,18 +147,22 @@ void EnemyAttack::AttackMove()
 	const auto& node = owner->GetAttackNode(owner->m_currentAttackIndex);
 
 	float currentFrame = owner->m_anim.GetNowAnimFrame();
-	Vector3 forward = owner->m_targetPos - owner->m_rb.m_pos;
-	forward.y = 0.0f;
-	forward = forward.Normalize();
+	//Enterで決めた向きに進む
+	const Vector3& forward = m_moveDir;
+	//目標までの残りの距離(進む向きの成分)//通り過ぎたら0以下
+	//playerがいどうしてもそのラインで止める
+	Vector3 toTarget = owner->m_targetPos - owner->m_rb.m_pos;
+	toTarget.y = 0.0f;
+	const float remain = (std::max)(toTarget.Dot(forward), 0.0f);
 
-	//移動距離
+	//移動距離//目標を通り過ぎないように、残りの距離までに抑える
 	if (currentFrame < node.attackColStartFrame)
 	{
-		owner->m_rb.m_vel = forward * node.moveSpeedBeforeCol;
+		owner->m_rb.m_vel = forward * (std::min)(node.moveSpeedBeforeCol, remain);
 	}
 	else if (owner->m_anim.IsAnimFrameBetween(node.attackColStartFrame,node.attackColEndFrame))
 	{
-		owner->m_rb.m_vel = forward * node.moveSpeedDuringCol;
+		owner->m_rb.m_vel = forward * (std::min)(node.moveSpeedDuringCol, remain);
 		if (m_attackCol) m_attackCol->SetIsActive(true);//攻撃の当たり判定を有効にする
 	}
 

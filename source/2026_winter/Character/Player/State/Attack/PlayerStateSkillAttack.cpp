@@ -45,6 +45,8 @@ void PlayerStateSkillAttack::Enter()
 {
 	auto player = m_owner.lock();
 	if (!player) return;
+	//落下禁止を有効化
+	player->SetPreventFall(true);
 	//攻撃の方向を決める(入力→ロックオン→内部ターゲット)
 	DecideAttackDirection();
 
@@ -62,8 +64,6 @@ void PlayerStateSkillAttack::Enter()
 		//内部ターゲットの敵が地上にいるなら
 	}
 
-	//スキル攻撃中は鴉状態にする
-	player->m_isRaven = true;
 
 	//スキル1,2はモデルを消して、代わりに分身エフェクトを出す
 	PlayGhostEffect(currentComboIndex);
@@ -141,6 +141,13 @@ void PlayerStateSkillAttack::Update()
 			return;
 		}
 		//アニメーションの更新
+		player->m_anim.Update();
+		return;
+	}
+
+	//血殺中は入力も遷移もしない
+	if (System::GetInstance().GetBattleMgr()->GetIsUltimating())
+	{
 		player->m_anim.Update();
 		return;
 	}
@@ -226,12 +233,13 @@ void PlayerStateSkillAttack::Exit()
 	auto player = m_owner.lock();
 	if (player)
 	{
+		//落下禁止を無効化
+		player->SetPreventFall(false);
 		player->m_comboInfo.isHit = false;
 
 		if (!m_isComboTransition)
 		{
 			player->m_comboInfo.currentComboIndex = ComboIndex::None;//攻撃していない状態に戻す
-			player->m_isRaven = false;//鴉状態を解除する
 			player->m_isCameraFocusOverride = false;//カメラの注視点を通常に戻す
 		}
 		

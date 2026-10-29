@@ -121,7 +121,7 @@ void EnemyBase::SetPatrolPoints(const std::vector<EnemySpawnRoutePoint>& route)
 	}
 }
 
-void EnemyBase::SetGuardPoint()
+void EnemyBase::SetWatchPoint()
 {
 	//今の位置で、ずっと待機する(waitTimeが負なら次へ出発しない)
 	SetPatrolPoints({ { m_rb.m_pos, -1.0f } });
@@ -140,18 +140,23 @@ void EnemyBase::OnAlerted()
 
 void EnemyBase::SetDebugIdle(bool isDebugIdle)
 {
-	m_isDebugIdle = isDebugIdle;
+	//デバッグウィンドウでAIを止めているときも同じ扱い
+	m_isDebugIdleGlobal = isDebugIdle;
+	m_isDebugIdle = isDebugIdle || m_isDebugStopAI;
 	if (!m_isDebugIdle)return;
 	if (m_isLifeZero || m_isExecuted)return;
 
-	//巡回・追跡・警戒・攻撃・後退中ならIdleにする//被弾中のStateはそのまま(終わったら自分でIdleに戻る)
+	//巡回・追跡・警戒・後退中ならIdleにする//被弾中のStateはそのまま(終わったら自分でIdleに戻る)
 	if (std::dynamic_pointer_cast<EnemyPatrol>(m_currentState) ||
 		std::dynamic_pointer_cast<EnemyChase>(m_currentState) ||
 		std::dynamic_pointer_cast<EnemyCaution>(m_currentState) ||
-		std::dynamic_pointer_cast<EnemyAttack>(m_currentState) ||
-		std::dynamic_pointer_cast<EnemyAttackPre>(m_currentState) ||
-		std::dynamic_pointer_cast<EnemyAttackEnd>(m_currentState) ||
 		std::dynamic_pointer_cast<EnemyBack>(m_currentState))
+	{
+		ChangeState(std::make_shared<EnemyIdle>(GetWeakPtr()));
+		return;
+	}
+	//攻撃中もIdleにする//デバッグウィンドウで止めているだけなら、選んだ攻撃を出せるように残す
+	if (isDebugIdle && IsAttackFlowState(m_currentState))
 	{
 		ChangeState(std::make_shared<EnemyIdle>(GetWeakPtr()));
 	}
@@ -489,6 +494,15 @@ void EnemyBase::OnAssasined()
 	return;
 }
 
+void EnemyBase::OnAirAssasined()
+{
+	//処刑済みにする(もう一度暗殺・確殺の対象にならないようにする)
+	m_isExecuted = true;
+	//StateをAirAssasinに変える
+	ChangeState(std::make_shared<EnemyAirAssasined>(GetWeakPtr()));
+	return;
+}
+
 void EnemyBase::OnPartBrokenKilled(PartBrokenPattern pattern)
 {
 	//処刑済みにする(もう一度暗殺・確殺の対象にならないようにする)
@@ -685,15 +699,8 @@ void EnemyBase::PlayBloodSplash(Collider& other)
 		const int pattern = GetRand(kBloodSplashPatternNum - 1);
 		effect = static_cast<AsyncData>(static_cast<int>(AsyncData::BloodSplashEffectA) + pattern);
 	}
-	//エフェクトの+Zを、プレイヤーから敵へ向かう方向(斬られて血が飛ぶ方向)に向ける
-	Vector3 toEnemy = m_rb.m_pos - player->GetRigidBody().GetPos();
-	toEnemy.y = 0.0f;
-	if (toEnemy.Magnitude() <= 0.0f)
-	{
-		toEnemy = player->GetTargetVec();//重なっているときはプレイヤーの正面に飛ばす
-	}
 	const Vector3 bloodPos(m_rb.m_pos.x, m_rb.m_pos.y + kBloodSplashHeight, m_rb.m_pos.z);
-	const int playingHandle = EffectManager::GetInstance().Play(effect, bloodPos, atan2f(toEnemy.x, toEnemy.z), kBloodSplashScale);
+	const int playingHandle = PlayBlood(effect, bloodPos);
 
 	//必殺技中の血は、タイムスケールに関係なくkBloodSplashUltSpeedの速さで飛ばす
 	//(当たった直後にスローがかかるので、EffectManagerが毎フレーム速さを設定し直す)
@@ -701,6 +708,28 @@ void EnemyBase::PlayBloodSplash(Collider& other)
 	{
 		EffectManager::GetInstance().SetOwnSpeed(playingHandle, kBloodSplashUltSpeed);
 	}
+}
+
+int EnemyBase::PlayBlood(AsyncData effect, const Vector3& pos)
+{
+	auto player = m_player.lock();
+	if (!player)return -1;
+
+	//エフェクトの+Zを、プレイヤーから敵へ向かう方向(斬られて血が飛ぶ方向)に向ける
+	Vector3 toEnemy = m_rb.m_pos - player->GetRigidBody().GetPos();
+	toEnemy.y = 0.0f;
+	if (toEnemy.Magnitude() <= 0.0f)
+	{
+		toEnemy = player->GetTargetVec();//重なっているときはプレイヤーの正面に飛ばす
+	}
+	return EffectManager::GetInstance().Play(effect, pos, atan2f(toEnemy.x, toEnemy.z), kBloodSplashScale);
+}
+
+void EnemyBase::PlayHeadBreakBlood()
+{
+	if (m_status.headFrame < 0)return;
+	const Vector3 neckPos = Vector3::FromDxLibVector(MV1GetFramePosition(m_modelHandle, m_status.headFrame));
+	PlayBlood(AsyncData::BloodSplashEffectB, neckPos);
 }
 
 void EnemyBase::FinisherPerformanceProcess()
@@ -762,6 +791,14 @@ std::shared_ptr<EnemyStateBase> EnemyBase::NextAfterAttack()
 
 std::shared_ptr<EnemyStateBase> EnemyBase::NextAfterAttackEnd()
 {
+	//連撃//今の攻撃にnextAttackがあれば、予備動作なしで次の攻撃へ
+	const int next = GetAttackNode(m_currentAttackIndex).nextAttack;
+	if (next >= 0)
+	{
+		assert(next < static_cast<int>(m_attackList.size()) && "nextAttackが攻撃CSVの行数を超えています");
+		m_currentAttackIndex = next;
+		return std::make_shared<EnemyAttack>(GetWeakPtr(), true);
+	}
 	//距離を取る
 	return std::make_shared<EnemyBack>(GetWeakPtr());
 }
@@ -835,12 +872,13 @@ void EnemyBase::InitializeAttackList(const std::vector<std::vector<std::string>>
 		node.index = std::stoi(tokens[EnemyAttackNodeType::Index]);
 
 		//予備動作//再生速度は空欄なら1.0、止めるフレーム・ブレンドは空欄なら-1(デフォルト)
+		//アニメが空欄なら予備動作のアニメを流さない、長さ・向く時間は空欄なら0(予備動作なし)
 		node.preAnimName = tokens[EnemyAttackNodeType::PreAnimName];
 		node.preAnimTimeScale = tokens[EnemyAttackNodeType::PreAnimTimeScale].empty() ? 1.0f : std::stof(tokens[EnemyAttackNodeType::PreAnimTimeScale]);
 		node.preAnimEndFrame = tokens[EnemyAttackNodeType::PreAnimEndFrame].empty() ? -1.0f : std::stof(tokens[EnemyAttackNodeType::PreAnimEndFrame]);
 		node.preBlendFrame = tokens[EnemyAttackNodeType::PreBlendFrame].empty() ? -1.0f : std::stof(tokens[EnemyAttackNodeType::PreBlendFrame]);
-		node.preTime = std::stof(tokens[EnemyAttackNodeType::PreTime]);
-		node.preLookTime = std::stof(tokens[EnemyAttackNodeType::PreLookTime]);
+		node.preTime = tokens[EnemyAttackNodeType::PreTime].empty() ? 0.0f : std::stof(tokens[EnemyAttackNodeType::PreTime]);
+		node.preLookTime = tokens[EnemyAttackNodeType::PreLookTime].empty() ? 0.0f : std::stof(tokens[EnemyAttackNodeType::PreLookTime]);
 
 		//攻撃//予備動作と同じく空欄なら初期値
 		node.animName = tokens[EnemyAttackNodeType::AnimName];

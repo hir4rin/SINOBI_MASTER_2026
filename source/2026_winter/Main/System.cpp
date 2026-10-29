@@ -19,6 +19,12 @@ namespace
 	const std::string kEnemyGunnerWeaponModelPath = "data/Enemy/EnemyGun/AK74.mv1";//ガンナーの銃
 	const std::string kEnemyGunnerPartLeftArmModelPath = "data/Enemy/Part/Gunner/LeftArm.mv1";//ソードマンの左腕から盾を外したもの
 	const std::string kEnemyBazookaWeaponModelPath = "data/Enemy/EnemyBazooka/RPG7.mv1";//バズーカ兵のRPG7
+	const std::string kBossModelPath = "data/Enemy/BossPirate/BossPirate.mv1";//ボス(海賊)
+	const std::string kBossArmLModelPath = "data/Enemy/BossPirate/BossArmL.mv1";//ボスの背中の左腕//フレームの並びはボスと同じ
+	const std::string kBossArmRModelPath = "data/Enemy/BossPirate/BossArmR.mv1";//ボスの背中の右腕
+	const std::string kBossPirateSwordModelPath = "data/Enemy/BossPirate/PirateSword.mv1";//海賊のボスの剣//Unity の Pirate_Sword.FBX から作った
+	const std::string kKingmechModelPath = "data/Enemy/ToiletMech/ToiletMech.mv1";//新しいボス(Kingmech)//tools/ToiletMech で作った
+	const std::string kKingmechGatlingModelPath = "data/Enemy/ToiletMech/KingmechGatling.mv1";//Kingmechのガトリング//tools/KingmechGatling で作った
 
 	//部位破壊で落ちるパーツのモデル//原点はそれぞれのボーンの付け根
 	const std::string kEnemyPartLeftArmModelPath = "data/Enemy/Part/Swordman/LeftArm.mv1";
@@ -27,6 +33,9 @@ namespace
 	//ステージのモデル
 	const std::string kTitleStageModelPath = "data/Stage/TestStage/TestStage.mv1";
 	const std::string kDemoStageModelPath = "data/Stage/DemoStage/DemoStage.mv1";
+	const std::string kTrainStageModelPath = "data/Stage/TrainStage/TrainStage.mv1";
+	const std::string kTrainStageColModelPath = "data/Stage/TrainStage/TrainStageCol.mv1";
+	const std::string kTrainTunnelModelPath = "data/Stage/TrainTunnel/TrainTunnel.mv1";
 
 	//スキルエフェクト確認用
 	const std::string kDebugGhostDashEffectPath = "data/Effect/Skill/GhostDash.efk";
@@ -62,8 +71,17 @@ void System::LoadAll()
 	m_asyncHandles[AsyncData::EnemyGunnerWeaponModel] = MV1LoadModel(kEnemyGunnerWeaponModelPath.c_str());
 	m_asyncHandles[AsyncData::EnemyGunnerPartLeftArmModel] = MV1LoadModel(kEnemyGunnerPartLeftArmModelPath.c_str());
 	m_asyncHandles[AsyncData::EnemyBazookaWeaponModel] = MV1LoadModel(kEnemyBazookaWeaponModelPath.c_str());
+	m_asyncHandles[AsyncData::BossModel] = MV1LoadModel(kBossModelPath.c_str());
+	m_asyncHandles[AsyncData::BossArmLModel] = MV1LoadModel(kBossArmLModelPath.c_str());
+	m_asyncHandles[AsyncData::BossArmRModel] = MV1LoadModel(kBossArmRModelPath.c_str());
+	m_asyncHandles[AsyncData::BossPirateSwordModel] = MV1LoadModel(kBossPirateSwordModelPath.c_str());
+	m_asyncHandles[AsyncData::KingmechModel] = MV1LoadModel(kKingmechModelPath.c_str());
+	m_asyncHandles[AsyncData::KingmechGatlingModel] = MV1LoadModel(kKingmechGatlingModelPath.c_str());
 	m_asyncHandles[AsyncData::TitleStageModel] = MV1LoadModel(kTitleStageModelPath.c_str());
 	m_asyncHandles[AsyncData::DemoStageModel] = MV1LoadModel(kDemoStageModelPath.c_str());
+	m_asyncHandles[AsyncData::TrainStageModel] = MV1LoadModel(kTrainStageModelPath.c_str());
+	m_asyncHandles[AsyncData::TrainStageColModel] = MV1LoadModel(kTrainStageColModelPath.c_str());
+	m_asyncHandles[AsyncData::TrainTunnelModel] = MV1LoadModel(kTrainTunnelModelPath.c_str());
 
 	SetUseASyncLoadFlag(FALSE);//ほかの場所の読み込みは同期に戻す
 
@@ -103,6 +121,11 @@ void System::Terminate()
 	DeleteEffekseerEffect(m_asyncHandles[AsyncData::EnemyHitEffectUlt]);
 	//ボス
 	MV1DeleteModel(m_asyncHandles[AsyncData::BossModel]);
+	MV1DeleteModel(m_asyncHandles[AsyncData::BossArmLModel]);
+	MV1DeleteModel(m_asyncHandles[AsyncData::BossArmRModel]);
+	MV1DeleteModel(m_asyncHandles[AsyncData::BossPirateSwordModel]);
+	MV1DeleteModel(m_asyncHandles[AsyncData::KingmechModel]);
+	MV1DeleteModel(m_asyncHandles[AsyncData::KingmechGatlingModel]);
 	DeleteEffekseerEffect(m_asyncHandles[AsyncData::BossAttackHadouEffect]);
 	DeleteEffekseerEffect(m_asyncHandles[AsyncData::BossAttackFireEffect]);
 	DeleteEffekseerEffect(m_asyncHandles[AsyncData::BossSummonEffect]);
@@ -112,6 +135,9 @@ void System::Terminate()
 	//stage
 	MV1DeleteModel(m_asyncHandles[AsyncData::TitleStageModel]);
 	MV1DeleteModel(m_asyncHandles[AsyncData::DemoStageModel]);
+	MV1DeleteModel(m_asyncHandles[AsyncData::TrainStageModel]);
+	MV1DeleteModel(m_asyncHandles[AsyncData::TrainStageColModel]);
+	MV1DeleteModel(m_asyncHandles[AsyncData::TrainTunnelModel]);
 	MV1DeleteModel(m_asyncHandles[AsyncData::StageModel]);
 	MV1DeleteModel(m_asyncHandles[AsyncData::StageModelCollider]);
 	DeleteEffekseerEffect(m_asyncHandles[AsyncData::AreaWallEffect]);

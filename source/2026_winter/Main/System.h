@@ -34,6 +34,11 @@ enum class AsyncData : int
 	EnemyBazookaWeaponModel,//バズーカ兵のRPG7
 	//ボス
 	BossModel,
+	BossArmLModel,//背中の左腕(ボスのモデルから切り出したもの)
+	BossArmRModel,//背中の右腕
+	BossPirateSwordModel,//海賊のボスの剣(カトラス)
+	KingmechModel,//新しいボス(Kingmech)//ToiletMech の頭をゴーレムの兜に替えたもの
+	KingmechGatlingModel,//Kingmechの右腕のガトリング(切り落として投げ返す)
 	BossAttackHadouEffect,
 	BossAttackFireEffect,
 	BossSummonEffect,
@@ -44,6 +49,9 @@ enum class AsyncData : int
 	StageModel,
 	StageModelCollider,
 	DemoStageModel,//デモステージ(UnityのDemoStageBuilderで生成)
+	TrainStageModel,//列車ステージの見た目(tools/TrainStage で生成)
+	TrainStageColModel,//列車ステージの当たり判定(箱だけの軽いモデル)
+	TrainTunnelModel,//列車ステージで流し続けるトンネル(Z方向に13200でループする)
 	AreaWallEffect,
 	WallBreakEffect,
 	//デバッグ

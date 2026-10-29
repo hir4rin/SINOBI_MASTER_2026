@@ -5,9 +5,17 @@
 #include "Collision/BoxShape.h"
 #include "Battle/BattleManager.h"
 #include "Main/System.h"
+#include "Camera/CameraManager.h"
 #include "DxLib.h"
 #include <cassert>
 #include <cmath>
+
+namespace
+{
+	constexpr float kDebugSkipBackDistance = 300.0f;//F4で移すとき、エリアの手前どれだけ離すか
+	constexpr float kBossFovOffset = 20.0f;//ボス戦で視野角を広げる角度(度)
+	constexpr float kBossFovBlendFrame = 60.0f;//広げるのにかけるフレーム数
+}
 
 void PhaseManager::Init(std::weak_ptr<EnemyManager> enemyManager, std::weak_ptr<Player> player)
 {
@@ -99,6 +107,14 @@ void PhaseManager::ChangePhase(int next, PhaseEvent event)
 	{
 	case PhaseEvent::BossAppear:
 		//printfDx("BossAppear\n");//仮
+		//ボス戦は視野角を広げる
+		if (auto player = m_player.lock())
+		{
+			if (auto cameraMgr = player->GetCameraManager().lock())
+			{
+				cameraMgr->SetFovOffset(kBossFovOffset, kBossFovBlendFrame);
+			}
+		}
 		break;
 	case PhaseEvent::GameClear:
 		//printfDx("GameClear\n");//仮
@@ -144,6 +160,52 @@ bool PhaseManager::IsConditionFulfilled(const PhaseTransition& trans) const
 
 
 	return false;
+}
+
+void PhaseManager::DebugSkipToBossPrevPhase()
+{
+	//ボスのフェーズへ進む行//遷移表の BossAppear の行
+	const PhaseTransition* toBoss = nullptr;
+	for (const auto& t : m_transitions)
+	{
+		if (t.event != PhaseEvent::BossAppear || t.from <= 0)continue;
+		toBoss = &t;
+		break;
+	}
+	if (!toBoss)return;
+
+	//ボスのフェーズ中なら次のフェーズへ//プレイヤーはそのまま
+	if (m_currentPhase >= toBoss->to)
+	{
+		for (const auto& t : m_transitions)
+		{
+			if (t.from != m_currentPhase || t.to <= 0)continue;
+			if (auto enemyMgr = m_enemyManager.lock())
+			{
+				enemyMgr->DebugClearEnemies();
+			}
+			ChangePhase(t.to, PhaseEvent::None);
+			return;
+		}
+		return;
+	}
+
+	//今いる敵を消す
+	if (auto enemyMgr = m_enemyManager.lock())
+	{
+		enemyMgr->DebugClearEnemies();
+	}
+	ChangePhase(toBoss->from, PhaseEvent::None);
+
+	//エリアの手前(-Z側)に移す//高さは箱の中心にして、床に落とす
+	if (toBoss->condition != PhaseConditionType::EnterArea || toBoss->areaIndex < 0)return;
+	auto player = m_player.lock();
+	if (!player)return;
+	const PhaseArea& area = m_areas[toBoss->areaIndex];
+	float back = area.halfExtents.z + kDebugSkipBackDistance;
+	float rad = area.rotYDeg * DX_PI_F / 180.0f;
+	player->SetPos(area.position + Vector3(-sinf(rad) * back, 0.0f, -cosf(rad) * back));
+	player->GetRigidBody().ResetVel();
 }
 
 bool PhaseManager::IsInArea(const PhaseArea& area, const Vector3& pos) const

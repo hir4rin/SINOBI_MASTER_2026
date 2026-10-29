@@ -23,7 +23,7 @@ void EnemyGuard::Enter()
 	auto owner = m_owner.lock();
 	if (!owner)return;
 
-	owner->m_anim.ChangeAnim(owner->GetAnimName("BlockLoop"), true,0.5f);
+	owner->m_anim.ChangeAnim(owner->GetAnimName("BlockLoop"), true, 0.5f * owner->GetAnimSpeed("BlockLoop"));
 }
 
 void EnemyGuard::Update()
@@ -45,7 +45,7 @@ void EnemyGuard::Update()
 	//ガード喰らい状態が終わったら、またアニメーションを元に戻す
 	if (owner->m_anim.GetAnimEndFlag())
 	{
-		owner->m_anim.ChangeAnim(owner->GetAnimName("BlockLoop"), true,0.5f); 
+		owner->m_anim.ChangeAnim(owner->GetAnimName("BlockLoop"), true, 0.5f * owner->GetAnimSpeed("BlockLoop")); 
 	}
 }
 
@@ -82,7 +82,7 @@ void EnemyGuard::OnGuardHit()
 	if (owner->m_attackData.attackType == AttackType::heavyAttack)
 	{
 		owner->m_guardInfo.GurardGauge = 0.0f;//一旦ここ(毎回リセットしたくなったらExitでする
-		owner->ChangeState(std::make_shared<EnemyGuardBreak>(owner));
+		owner->ChangeState(CreateGuardBreakState());
 		return;
 	}
 
@@ -98,6 +98,11 @@ void EnemyGuard::OnGuardHit()
 		return;
 	}
 
-	owner->m_anim.ChangeAnim(owner->GetAnimName("BlockHit"), true,0.5f);
+	owner->m_anim.ChangeAnim(owner->GetAnimName("BlockHit"), true, 0.5f * owner->GetAnimSpeed("BlockHit"));
 
+}
+
+std::shared_ptr<EnemyStateBase> EnemyGuard::CreateGuardBreakState()
+{
+	return std::make_shared<EnemyGuardBreak>(m_owner);
 }

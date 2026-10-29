@@ -18,6 +18,8 @@ public:
 	void Draw();
 	//デバッグ描画//文字を出すので、3D・UIを描き終わった後に呼ぶこと//F3で表示を切り替える
 	void DebugDraw();
+	//デバッグ用のImGuiウィンドウ(HasDebugWindowがtrueの敵だけ)//F2で表示/非表示
+	void DrawDebugWindows();
 
 
 	void SetPlayer(std::weak_ptr<Player> player) { m_player = player; }
@@ -31,6 +33,7 @@ public:
 	int GetTotalKillCount()const { return m_totalKillCount; }
 	//Group内の敵がすべて死んだかどうか
 	bool IsGroupAllDead(const std::string& groupId)const;
+	void DebugClearEnemies();//デバッグ用//敵と死体を全部消す
 private:
 	void SpawnEnemy();
 	void UpdateCorpses();//死体の数が上限を超えたら、古い順に消す

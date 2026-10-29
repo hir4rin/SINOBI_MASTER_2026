@@ -4,7 +4,7 @@
 #include <cmath>
 #include <unordered_map>
 #include "Character/Player/Player.h"
-#include "Character/Enemy/EnemySwordman.h"
+#include "Character/Enemy/Swordman/EnemySwordman.h"
 #include "Character/Enemy/EnemyManager.h"
 #include "Camera/Camera.h"
 #include "Camera/CameraManager.h"
@@ -97,12 +97,14 @@ void SceneMain::Init()
 {
 	SetupCamera_Perspective(kCameraViewAngle);
 	SetCameraNearFar(kCameraNear, kCameraFar);
-	//DxLibの標準ライトは他のライトと重なって明るくなりすぎるので無効化
-	//SetLightEnable(FALSE);
+	//DxLibの標準ライトは他のライトと重なって明るくなりすぎる(全体が白っぽくなる)ので無効化
+	//標準ライトの環境光(0.33)の分は TempTopLight の環境光に足してある
+	SetLightEnable(FALSE);
 	m_lightHandle = CreateDirLightHandle(VNorm(kLightDir));
 	SetLightDifColorHandle(m_lightHandle, GetColorF(kLightDifColorValue, kLightDifColorValue, kLightDifColorValue, 1.0f));
 	SetLightSpcColorHandle(m_lightHandle, GetColorF(kLightSpcColorValue, kLightSpcColorValue, kLightSpcColorValue, 1.0f));
 	SetLightAmbColorHandle(m_lightHandle, GetColorF(kLightAmbColorValue, kLightAmbColorValue, kLightAmbColorValue, 1.0f));
+	m_tempTopLight.Init();//[TempTopLight]
 
 	//CSVデータ(アニメーション名・コンボ)の読み込み
 	DataManager::GetInstance().LoadAll();
@@ -119,7 +121,7 @@ void SceneMain::Init()
 	m_stage = std::make_shared<Stage>();
 	m_stage->Init();
 	const StageInfo& stageInfo = StageData::GetInfo(m_stageType);
-	m_stage->GameInit(stageInfo.model);
+	m_stage->GameInit(stageInfo);
 	CollisionManager::GetInstance().SetStage(m_stage);
 	//ステージ編集モードで保存した壁キック/壁走りゾーンを読み込む
 	m_stage->LoadWallZones(stageInfo.wallZoneNumber);
@@ -274,6 +276,16 @@ void SceneMain::NormalUpdate()
 	//[BloodKillFog]必殺技中かどうかで赤いフォグのかかり具合を進める
 	m_bloodKillFog.Update(battleMgr->GetIsUltimating());
 
+#ifdef _DEBUG
+	//F4キーでボスの一つ手前のフェーズへ飛ぶ
+	const bool isF4Pressed = CheckHitKey(KEY_INPUT_F4) != 0;
+	if (isF4Pressed && !m_wasF4Pressed)
+	{
+		m_phaseManager->DebugSkipToBossPrevPhase();
+	}
+	m_wasF4Pressed = isF4Pressed;
+#endif
+
 	//F5/F6キーでスキルエフェクトを再生する(エフェクト確認用)
 	const bool isF5Pressed = CheckHitKey(KEY_INPUT_F5) != 0;
 	const bool isF6Pressed = CheckHitKey(KEY_INPUT_F6) != 0;
@@ -359,7 +371,10 @@ void SceneMain::NormalDraw()
 	CollisionManager::GetInstance().DebugDraw();
 	//敵のデバッグ表示(頭の上の文字)//2Dの文字は後から描く3Dに上書きされるので、UIの後に描く
 	m_enemyManager->DebugDraw();
+	//ボスのデバッグウィンドウ(F2で表示/非表示)
+	if (imguiApp::GetInstance().IsDebugUIVisible())m_enemyManager->DrawDebugWindows();
 	m_phaseManager->DebugDraw();
+	m_player->GetLockOnManager()->DebugDraw();
 	//ステージ編集中はエディタ側で(選択中を白にして)描く
 	if (!System::GetInstance().GetBattleMgr()->GetStageEditMode())m_phaseManager->DrawAreas();
 	DrawFormatString(0, 0, GetColor(255, 255, 255), "FRAME:%d", m_frameCount);

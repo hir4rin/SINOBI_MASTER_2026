@@ -19,10 +19,19 @@ namespace
 	constexpr float kCameraShakePower = 2.5f;//カメラの揺れの強さ
 	constexpr float kCameraShakeTime = 5.0f;//カメラの揺れの時間
 
+	constexpr float kFovPunchAngle = -15.0f;//FOVパンチの強さ(度)
+	constexpr float kFovPunchTime = 90.0f;//FOVパンチの長さ
+	constexpr float kFovPunchInFrame = 20.0f;//FOVパンチの入りのフレーム数
+	constexpr float kFovPunchOutPower = 1.5f;//FOVパンチの戻りのイージングの指数
+
 	constexpr float kEfOffset = 80.0f;//エフェクトの座標のオフセット
 
 	constexpr int kUltStartFrame = 120;//必殺技の演出の開始フレーム数
 	constexpr float kUltTimeScaleRate = 0.1f;//必殺技演出中の時間スケール
+
+	constexpr int kSkillKessatuFrame = 60;//スキル血殺の演出の長さ(タイムスケールを掛けて減る)
+	constexpr int kSkillKessatuSlowFrame = 60;//スキル血殺のスローの長さ(実フレーム)
+	constexpr float kSkillKessatuTimeScaleRate = 0.1f;//スキル血殺中の時間スケール
 
 	constexpr int kSkillGaugeGainPerHit = 20;//攻撃ヒット時のスキルゲージ上昇量
 	constexpr int kUltGaugeGainPerHitNormal = 10;//通常時の攻撃ヒット時の必殺技ゲージ上昇量
@@ -139,6 +148,13 @@ void AttackCol::PlayerAttackOnCollision(Collider& other)
 				if (m_hitIds.empty() && GetTag().role != Collider::ColRole::UltAttack)
 				{
 					cameraManager->StartCameraShake(kCameraShakePower, kCameraShakeTime);//カメラを揺らす
+					//空中攻撃の最後の攻撃だったら
+					int comboIndex = m_attackData->comboIndex;
+					bool isAirAttack = comboIndex >= ComboIndex::AirAttack1 && comboIndex <= ComboIndex::AirAttack5;
+					if (isAirAttack && m_attackData->isLastHit)
+					{
+						cameraManager->StartFovPunch(kFovPunchAngle, kFovPunchTime, kFovPunchInFrame, kFovPunchOutPower);
+					}
 				}
 
 				//attackDataの変更//現在経過時間を引いて、敵の移動距離、時間を決める
@@ -162,6 +178,11 @@ void AttackCol::PlayerAttackOnCollision(Collider& other)
 				{
 					player->SetSoftTarget(hitOwnerEnemy);
 				}
+				//最初に当たった攻撃なら、PlayerCamera中だけ敵との位置関係から45度傾けたカメラに遷移する//必殺技はUltCameraに任せる
+				if (m_hitIds.empty() && GetTag().role != Collider::ColRole::UltAttack)
+				{
+					cameraManager->OnPlayerAttackHit();
+				}
 				//攻撃の対象に当たったら攻撃の移動を止める
 				if (hitOwnerEnemy && hitOwnerEnemy == player->GetAttackTarget())
 				{
@@ -170,8 +191,19 @@ void AttackCol::PlayerAttackOnCollision(Collider& other)
 					comboInfo.isHit = true;//攻撃が当たったことを通知する//これで、攻撃の移動を止める
 				}
 			}
+
+			//スキル1・2の最後の一撃、スキル3の着地で血殺
+			const int comboIndex = m_attackData->comboIndex;
+
+			const bool isUltTriggerSkill = comboIndex == ComboIndex::SkillAttack1 ||
+				comboIndex == ComboIndex::AirSkillAttack1 ||
+				comboIndex == ComboIndex::SkillAttack2 ||
+				m_attackData->attackType == AttackType::ImpactSkillAttack;
+
+			bool isUltimating = player->GetIsUltimating() && m_attackData->isLastHit && isUltTriggerSkill;
+
 			//もしプレイヤーの必殺技攻撃だったら
-			if (GetTag().role == Collider::ColRole::UltAttack)
+			if (GetTag().role == Collider::ColRole::UltAttack || isUltimating)
 			{
 				auto cameraManager = player->GetCameraManager().lock();
 
@@ -179,12 +211,26 @@ void AttackCol::PlayerAttackOnCollision(Collider& other)
 				bool isUltStart = System::GetInstance().GetBattleMgr()->GetIsUltimating();
 				if (!isUltStart)
 				{
-					System::GetInstance().GetBattleMgr()->SetUltStart(kUltStartFrame);//必殺技の演出をスタートする
-					if (!System::GetInstance().GetBattleMgr()->GetIsLastHitEventPlaying())
+					const bool isLastHitEvent = System::GetInstance().GetBattleMgr()->GetIsLastHitEventPlaying();
+
+					//スキルと必殺の血殺を分ける
+					if (isUltimating)
 					{
-						System::GetInstance().SetTimeScaleForFrames(kUltTimeScaleRate, kUltStartFrame);//時間を遅くする//60フレームで元に戻す
-						//カメラを移行
-						cameraManager->ChangeStateFromScene(CameraManager::CameraStateName::UltCamera);
+						System::GetInstance().GetBattleMgr()->SetUltStart(kSkillKessatuFrame);//スキル血殺の演出をスタートする
+						if (!isLastHitEvent)
+						{
+							System::GetInstance().SetTimeScaleForFrames(kSkillKessatuTimeScaleRate, kSkillKessatuSlowFrame);//時間を遅くする//60フレームで元に戻す
+							cameraManager->ChangeStateFromScene(CameraManager::CameraStateName::SkillKessatuCamera);
+						}
+					}
+					else
+					{
+						System::GetInstance().GetBattleMgr()->SetUltStart(kUltStartFrame);//必殺技の演出をスタートする
+						if (!isLastHitEvent)
+						{
+							System::GetInstance().SetTimeScaleForFrames(kUltTimeScaleRate, kUltStartFrame);//時間を遅くする//60フレームで元に戻す
+							cameraManager->ChangeStateFromScene(CameraManager::CameraStateName::UltCamera);
+						}
 					}
 				}
 				if (m_hitIds.empty())
@@ -292,15 +338,19 @@ void AttackCol::PlayerGaugeUp(Collider& other)
 	if (!player)return;
 
 
+	//スキル攻撃・ガードブレイクアタックかどうか
+	const bool isSkillAttack = m_attackData->attackType == AttackType::SkillAttack ||
+		m_attackData->attackType == AttackType::GuardBreakAttack;
+
 	//通常攻撃ならスキル攻撃をあげる
-	if (!player->GetIsRaven())
+	if (!isSkillAttack)
 	{
 		//スキルゲージの上昇
 		player->AddSkillGauge(kSkillGaugeGainPerHit);
 		//必殺技ゲージの上昇
 		player->AddUltGauge(kUltGaugeGainPerHitNormal);
 	}
-	//raven状態なら
+	//スキル攻撃なら
 	else
 	{
 		//必殺技ではないのならスキルゲージを上げる//スキル攻撃

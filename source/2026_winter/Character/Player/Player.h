@@ -11,6 +11,7 @@
 #include "Character/Player/State/Attack/PlayerStateSkillAttack.h"//以下同文
 #include "Character/Player/State/Attack/PlayerStateUlt.h"//以下同文
 #include "Character/Player/State/Attack/PlayerStateAssasin.h"//以下同文
+#include "Character/Player/State/Attack/PlayerStateAirAssasin.h"//以下同文
 #include "Character/Player/State/Attack/PlayerStatePartBrokenKill.h"//以下同文
 #include "Character/Player/State/Defence/PlayerStateDie.h"//以下同文
 #include "Character/Player/State/Attack/PlayerStateDashAttack.h"//以下同文
@@ -25,6 +26,7 @@
 #include "Character/Player/State/Defence/PlayerAttackParried.h"//以下同文
 #include "Character/Player/State/Attack/PlayerStateGuardBreakChance.h"//以下同文
 #include "Character/Player/State/Attack/PlayerStateGuardBreakAttack.h"//以下同文
+#include "Character/Player/State/Attack/PlayerStateBossPartThrow.h"//以下同文
 #include "DataLoader/AnimData.h"
 #include <memory>
 
@@ -211,8 +213,6 @@ public:
 	//血殺(必殺技ゲージ)を最大にする//ラストヒットイベント演出用
 	void MaxUltGauge() { m_comboInfo.UltGauge = kMaxGaugeValue; }
 
-	//鴉状態かどうか
-	bool GetIsRaven()const { return m_isRaven; }
 
 	//カメラが注視するプレイヤーの座標//打ち上げ(スキル0)が当たってからスキル1が終わるまでは、Yだけ打ち上げた敵の高さになる
 	Vector3 GetCameraFocusPos()const;
@@ -227,6 +227,8 @@ public:
 	std::shared_ptr<EnemyBase> GetSoftTarget()const;//死んでいたらnullptrを返す
 	//攻撃の対象//ロックオン中はロックオン対象、そうでなければ内部ターゲット
 	std::shared_ptr<EnemyBase> GetAttackTarget()const;
+
+	bool IsMoveState()const;//Move,FastRunのときtrue
 
 	//暗殺
 
@@ -251,6 +253,10 @@ public:
 
 	//ブレイクの通知
 	void RequestGuardBreakChance(std::shared_ptr<EnemyBase> target) { m_guardBreakChanceTarget = target; }
+	//ボスのパーツを切り落とした通知//切り上げの後にPlayerStateBossPartThrowへ
+	void RequestBossPartThrow(std::shared_ptr<EnemyBase> target) { m_bossPartThrowTarget = target; }
+	//必殺技状態中かどうか
+	bool GetIsUltimating() { return m_isUltimating; }
 
 
 	//内部ロックオンのために
@@ -280,7 +286,6 @@ private:
 
 	void InitializeComboChain();//CSVからコンボデータの読み込みをする
 	void UpdateAngle();//回転処理
-	void WingUpdate();//鴉状態の羽の更新
 	void BloodWingUpdate();//必殺技状態の翼エフェクトの再生・停止と、背中への追従
 	static MATRIX ScaleRotation(const MATRIX& rot, float rate);//回転行列の回転量だけを割合で弱める(回転軸はそのまま)
 	static MATRIX GetRotationOnly(const MATRIX& mat);//行列から回転だけを取り出す(拡大縮小と平行移動を除く)
@@ -321,7 +326,6 @@ private:
 	std::shared_ptr<PlayerState> m_currentState;//プレイヤーの状態//攻撃中、移動中など//状態遷移の管理をするためのもの
 	std::shared_ptr<PlayerState> m_prevState;//前の状態
 
-	bool m_isRaven = false;//鴉状態かどうか//攻撃が変化する
 	bool m_isUltimating = false;//必殺技状態かどうか
 	bool m_isSkillInvisible = false;//スキル攻撃中にモデル(本体・羽・武器)を描画しないか//代わりにエフェクトを出す
 	bool m_isCameraFocusOverride = false;//カメラの注視点のYを敵の高さで上書きするか//打ち上げ(スキル0)が当たってからスキル1の間だけtrue
@@ -329,7 +333,6 @@ private:
 	bool m_isTitleMode = false;//タイトル画面かどうか//trueの場合、移動方向をカメラ基準ではなく固定軸にする
 	const int kPlayerNeckBoneIndex = 25;//首のボーンのインデックス
 	int m_headFrame = -1;//頭のボーンのフレーム番号(通常のモデル)//見つからなければ-1で頭を向けない
-	int m_wingModelHandle = -1;//鴉の羽のモデルのハンドル//鴉状態の時に表示する
 	int m_bloodWingPlayingHandle = -1;//必殺技状態の翼エフェクト(再生中)のハンドル//再生していなければ-1
 	int m_bloodWingFrame = -1;//翼の付け根にする背中(肩甲骨の高さ)のボーン//通常のモデル用
 	int m_bloodWingAttackFrame = -1;//同じボーンの攻撃のモデル用
@@ -371,6 +374,7 @@ private:
 	std::weak_ptr<EnemyBase> m_partBrokenTarget;
 	bool m_isPartBrokenKilling = false;//確殺演出中かどうか//trueの間はロックオンマネージャーが確殺対象を更新しない
 	std::weak_ptr<EnemyBase> m_guardBreakChanceTarget;//ブレイクした敵
+	std::weak_ptr<EnemyBase> m_bossPartThrowTarget;//パーツを切り落としたボス
 
 	//壁走り、壁キック用
 	//当たった壁との情報//壁走りの開始位置の判定に使う
@@ -391,6 +395,7 @@ private:
 	friend class PlayerStateSkillAttack;
 	friend class PlayerStateUlt;
 	friend class PlayerStateAssasin;
+	friend class PlayerStateAirAssasin;
 	friend class PlayerStatePartBrokenKill;
 	friend class PlayerStateDie;
 	friend class PlayerStateDashAttack;
@@ -405,6 +410,7 @@ private:
 	friend class PlayerAttackParried;
 	friend class PlayerStateGuardBreakChance;
 	friend class PlayerStateGuardBreakAttack;
+	friend class PlayerStateBossPartThrow;
 	//武器
 	friend class PlayerWeapon;
 

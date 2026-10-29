@@ -16,9 +16,15 @@ namespace
 	constexpr int kLockOnCheckNum = 3;//ロックオン対象を探すとき、範囲を広げる回数
 	constexpr float kLockOnRangeExpandMult = 3.0f;//切り替え・再取得時の範囲の倍率
 
+	constexpr float kAssasinRange = 400.0f;//暗殺できる距離
+	constexpr float kAirAssasinRange = 800.0f;//空中暗殺できる距離(プレイヤーが空中のとき)
+	constexpr float kPartBrokenRange = 400.0f;//確殺できる距離
+	constexpr float kExecuteReleaseMargin = 50.0f;//暗殺・確殺の対象を外す距離の余裕(境目でのちらつき防止)
+
 	constexpr float kDebugSphereRadius = 20.0f;//デバッグ描画の球の半径
 	constexpr float kDebugSphereOffsetY = 200.0f;//デバッグ描画の球の高さ
 	constexpr int kDebugSphereDivNum = 8;//デバッグ描画の球の分割数
+	constexpr int kDebugCircleDivNum = 48;//デバッグ描画の円の分割数
 }
 
 
@@ -216,13 +222,15 @@ void LockOnManager::TryAssasinTarget()
 	if (!GetCameraInfo(cameraPos, cameraDir))return;
 
 	//細かい範囲の調整は後で調整
+	//空中なら空中暗殺の範囲
+	const float range = player->IsFloor() ? kAssasinRange : kAirAssasinRange;
 
 	//範囲内にいる敵を見つける
 	std::vector<std::shared_ptr<EnemyBase>> candidates;
 	//範囲をだんだん広げる
 	for (int i = 1; i <= kLockOnCheckNum; i++)
 	{
-		candidates = CollectEnemiesRange(player->GetCameraRockOnRange() * i);
+		candidates = CollectEnemiesRange(range * i / kLockOnCheckNum);
 		//処刑済み(確殺・暗殺が始まった)敵、空中にいる敵、プレイヤーを発見している敵は外す//範囲を広げる判定より前に外す
 		std::erase_if(candidates, [](const auto& enemy)
 		{
@@ -270,9 +278,10 @@ void LockOnManager::CheckAssasinTarget()
 	//細かい範囲の調整は後で調整
 
 
-	//離れすぎたら解除
+	//離れすぎたら解除(空中なら空中暗殺の範囲)
+	const float range = player->IsFloor() ? kAssasinRange : kAirAssasinRange;
 	float distance = (target->GetRigidBody().GetPos() - player->GetRigidBody().GetPos()).Magnitude();
-	if (distance > kLockOnMaxDistance)
+	if (distance > range + kExecuteReleaseMargin)
 	{
 		//解除
 		player->ClearAssasinTarget();
@@ -318,7 +327,7 @@ void LockOnManager::TryPartBrokenTarget()
 	//範囲をだんだん広げる
 	for (int i = 1; i <= kLockOnCheckNum; i++)
 	{
-		candidates = CollectEnemiesRange(player->GetCameraRockOnRange() * i);
+		candidates = CollectEnemiesRange(kPartBrokenRange * i / kLockOnCheckNum);
 		//部位破壊している、かつ処刑済みでない、かつ地上にいる敵のみにする//範囲を広げる判定より前に外す
 		std::erase_if(candidates, [](const auto& enemy)
 		{
@@ -362,7 +371,7 @@ void LockOnManager::CheckPartBrokenTarget()
 
 	//離れすぎたら解除
 	float distance = (target->GetRigidBody().GetPos() - player->GetRigidBody().GetPos()).Magnitude();
-	if (distance > kLockOnMaxDistance)
+	if (distance > kPartBrokenRange + kExecuteReleaseMargin)
 	{
 		//解除
 		player->ClearPartBrokenTarget();
@@ -393,6 +402,49 @@ void LockOnManager::PartBrokenUpdate()
 	CheckPartBrokenTarget();
 }
 
+void LockOnManager::DebugDraw() const
+{
+	auto player = m_player.lock();
+	if (!player)return;
+
+	const Vector3 center = player->GetRigidBody().GetPos();
+	auto drawCircle = [&](float radius, unsigned int color)
+	{
+		for (int i = 0; i < kDebugCircleDivNum; i++)
+		{
+			const float angle0 = DX_TWO_PI_F * i / kDebugCircleDivNum;
+			const float angle1 = DX_TWO_PI_F * (i + 1) / kDebugCircleDivNum;
+			const Vector3 p0 = center + Vector3(cosf(angle0), 0, sinf(angle0)) * radius;
+			const Vector3 p1 = center + Vector3(cosf(angle1), 0, sinf(angle1)) * radius;
+			DrawLine3D(p0.ToDxLibVector(), p1.ToDxLibVector(), color);
+		}
+	};
+
+	const unsigned int assasinColor = GetColor(200, 0, 255);
+	const unsigned int assasinReleaseColor = GetColor(100, 0, 128);
+	const unsigned int partBrokenColor = GetColor(255, 0, 0);
+	const unsigned int partBrokenReleaseColor = GetColor(128, 0, 0);
+
+	//足元に範囲(明るい色=入る距離、暗い色=外れる距離)
+	const float assasinRange = player->IsFloor() ? kAssasinRange : kAirAssasinRange;//空中なら空中暗殺の範囲
+	drawCircle(assasinRange, assasinColor);
+	drawCircle(assasinRange + kExecuteReleaseMargin, assasinReleaseColor);
+	drawCircle(kPartBrokenRange, partBrokenColor);
+	drawCircle(kPartBrokenRange + kExecuteReleaseMargin, partBrokenReleaseColor);
+
+	//対象の頭の上に球(同じ敵が両方の対象でも重ならないよう確殺は上にずらす)
+	if (auto target = player->GetAssasinTarget())
+	{
+		const Vector3 pos = target->GetRigidBody().GetPos() + Vector3(0, kDebugSphereOffsetY, 0);
+		DrawSphere3D(pos.ToDxLibVector(), kDebugSphereRadius, kDebugSphereDivNum, assasinColor, assasinColor, true);
+	}
+	if (auto target = player->GetPartBrokenTarget())
+	{
+		const Vector3 pos = target->GetRigidBody().GetPos() + Vector3(0, kDebugSphereOffsetY + kDebugSphereRadius * 3.0f, 0);
+		DrawSphere3D(pos.ToDxLibVector(), kDebugSphereRadius, kDebugSphereDivNum, partBrokenColor, partBrokenColor, true);
+	}
+}
+
 bool LockOnManager::GetCameraInfo(Vector3& pos, Vector3& dir) const
 {
 	auto cameraManager = m_cameraManager.lock();
@@ -420,6 +472,7 @@ std::vector<std::shared_ptr<EnemyBase>> LockOnManager::CollectEnemiesRange(float
 		//同じだったら除外
 		if (enemy == exclude)continue;
 		if (enemy->GetIsLifeZero())continue;
+		if (!enemy->IsTargetable())continue;
 
 		float distance = (enemy->GetRigidBody().GetPos() - playerPos).Magnitude();
 		//範囲内の敵をすべて入れる

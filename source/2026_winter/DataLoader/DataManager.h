@@ -41,6 +41,30 @@ public:
 	/// </summary>
 	void ReloadEnemyBazookaAttackRawData() { LoadEnemyBazookaAttackRawData(); }
 	/// <summary>
+	/// BossEnemyPirateAttack.csvを読み込み直す(デバッグ用)
+	/// </summary>
+	void ReloadBossEnemyPirateAttackRawData() { LoadBossEnemyPirateAttackRawData(); }
+	/// <summary>
+	/// BossEnemyPirateAnim.csvを読み込み直す(デバッグ用)
+	/// </summary>
+	void ReloadBossEnemyPirateAnimData();
+	/// <summary>
+	/// BossEnemyPirateR1Attack.csvを読み込み直す(デバッグ用)
+	/// </summary>
+	void ReloadBossEnemyPirateR1AttackRawData() { LoadBossEnemyPirateR1AttackRawData(); }
+	/// <summary>
+	/// BossEnemyPirateR1Anim.csvを読み込み直す(デバッグ用)
+	/// </summary>
+	void ReloadBossEnemyPirateR1AnimData();
+	/// <summary>
+	/// BossEnemyKingmechAttack.csvを読み込み直す(デバッグ用)
+	/// </summary>
+	void ReloadBossEnemyKingmechAttackRawData() { LoadBossEnemyKingmechAttackRawData(); }
+	/// <summary>
+	/// BossEnemyKingmechAnim.csvを読み込み直す(デバッグ用)
+	/// </summary>
+	void ReloadBossEnemyKingmechAnimData();
+	/// <summary>
 	/// EnemyStatus.csvを読み込み直す(デバッグ用)
 	/// </summary>
 	void ReloadEnemyStatusRawData() { LoadEnemyStatusRawData(); }
@@ -52,6 +76,13 @@ public:
 	const std::vector<std::vector<std::string>>& GetEnemyGunnerAttackRawData() const { return m_enemyGunnerAttackRawData; }//敵(ガンナー)の攻撃の生データ
 	const AnimData& GetEnemyBazookaAnimData() const { return m_enemyBazookaAnimData; }
 	const std::vector<std::vector<std::string>>& GetEnemyBazookaAttackRawData() const { return m_enemyBazookaAttackRawData; }//敵(バズーカ兵)の攻撃の生データ
+	const AnimData& GetBossEnemyPirateAnimData() const { return m_bossEnemyPirateAnimData; }
+	const std::vector<std::vector<std::string>>& GetBossEnemyPirateAttackRawData() const { return m_bossEnemyPirateAttackRawData; }//ボス(海賊)の攻撃の生データ
+	const AnimData& GetBossEnemyPirateR1AnimData() const { return m_bossEnemyPirateR1AnimData; }
+	const std::vector<std::vector<std::string>>& GetBossEnemyPirateR1AttackRawData() const { return m_bossEnemyPirateR1AttackRawData; }//ボス(海賊・第二ラウンド)の攻撃の生データ
+	const AnimData& GetBossEnemyKingmechAnimData() const { return m_bossEnemyKingmechAnimData; }
+	const std::vector<std::vector<std::string>>& GetBossEnemyKingmechAttackRawData() const { return m_bossEnemyKingmechAttackRawData; }//ボス(Kingmech)の攻撃の生データ
+	const AnimData& GetBossArmAnimData() const { return m_bossArmAnimData; }//ボスの背中の腕のアニメデータ
 	const std::vector<std::vector<std::string>>& GetEnemyStatusRawData() const { return m_enemyStatusRawData; }//敵のステータスの生データ(1行=1種類)//解釈はEnemyBase::InitializeStatus
 	const AnimData& GetBossAnimData() const { return m_bossAnimData;}
 	const std::vector<std::vector<std::string>>& GetComboRawData() const { return m_comboRawData;}
@@ -112,6 +143,9 @@ private:
 	void LoadEnemySwordmanAttackRawData(); //敵(ソードマン)の攻撃の生データを読み込む関数
 	void LoadEnemyGunnerAttackRawData(); //敵(ガンナー)の攻撃の生データを読み込む関数
 	void LoadEnemyBazookaAttackRawData(); //敵(バズーカ兵)の攻撃の生データを読み込む関数
+	void LoadBossEnemyPirateAttackRawData(); //ボス(海賊)の攻撃の生データを読み込む関数
+	void LoadBossEnemyPirateR1AttackRawData(); //ボス(海賊・第二ラウンド)の攻撃の生データを読み込む関数
+	void LoadBossEnemyKingmechAttackRawData(); //ボス(Kingmech)の攻撃の生データを読み込む関数
 	void LoadRawCsv(const std::string& filePath, std::vector<std::vector<std::string>>& rawData);//#の行を飛ばして1行ずつ分割する
 	void LoadEnemyStatusRawData(); //敵のステータスの生データを読み込む関数
 	void LoadBossAnimData(); //ボスのアニメーションデータを読み込む関数
@@ -148,6 +182,13 @@ private:
 	std::vector<std::vector<std::string>> m_enemyGunnerAttackRawData;//敵(ガンナー)の攻撃の生データ
 	AnimData m_enemyBazookaAnimData;//敵(バズーカ兵)のアニメデータ
 	std::vector<std::vector<std::string>> m_enemyBazookaAttackRawData;//敵(バズーカ兵)の攻撃の生データ
+	AnimData m_bossEnemyPirateAnimData;//ボス(海賊)のアニメデータ
+	std::vector<std::vector<std::string>> m_bossEnemyPirateAttackRawData;//ボス(海賊)の攻撃の生データ
+	AnimData m_bossEnemyPirateR1AnimData;//ボス(海賊・第二ラウンド)のアニメデータ
+	std::vector<std::vector<std::string>> m_bossEnemyPirateR1AttackRawData;//ボス(海賊・第二ラウンド)の攻撃の生データ
+	AnimData m_bossEnemyKingmechAnimData;//ボス(Kingmech)のアニメデータ
+	std::vector<std::vector<std::string>> m_bossEnemyKingmechAttackRawData;//ボス(Kingmech)の攻撃の生データ
+	AnimData m_bossArmAnimData;//ボスの背中の腕のアニメデータ
 	std::vector<std::vector<std::string>> m_enemyStatusRawData;//敵のステータスの生データ
 	AnimData m_bossAnimData;//ボスのアニメーションデータ
 	std::vector<std::vector<std::string>> m_comboRawData;//コンボの生データ

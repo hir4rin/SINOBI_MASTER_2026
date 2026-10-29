@@ -20,6 +20,13 @@ namespace
     const std::string kEnemyGunnerAttackPath = "data/Enemy/EnemyGunnerAttack.csv";
     const std::string kEnemyBazookaAnimPath = "data/Enemy/EnemyBazookaAnim.csv";
     const std::string kEnemyBazookaAttackPath = "data/Enemy/EnemyBazookaAttack.csv";
+    const std::string kBossEnemyPirateAnimPath = "data/Enemy/BossEnemyPirateAnim.csv";
+    const std::string kBossEnemyPirateAttackPath = "data/Enemy/BossEnemyPirateAttack.csv";
+    const std::string kBossEnemyPirateR1AnimPath = "data/Enemy/BossEnemyPirateR1Anim.csv";//第二ラウンド
+    const std::string kBossEnemyPirateR1AttackPath = "data/Enemy/BossEnemyPirateR1Attack.csv";//第二ラウンド
+    const std::string kBossEnemyKingmechAnimPath = "data/Enemy/BossEnemyKingmechAnim.csv";//新しいボス(Kingmech)
+    const std::string kBossEnemyKingmechAttackPath = "data/Enemy/BossEnemyKingmechAttack.csv";
+    const std::string kBossArmAnimPath = "data/Enemy/BossArmAnim.csv";//ボスの背中の腕//アニメ名はボスのモデルのもの
     const std::string kEnemyStatusPath = "data/Enemy/EnemyStatus.csv";
 
     const std::string kBossAnimPath = "data/Enemy/Boss/BossAnim.csv";
@@ -97,6 +104,13 @@ void DataManager::LoadAll()
     LoadEnemyGunnerAttackRawData();
     LoadAnimData(kEnemyBazookaAnimPath, m_enemyBazookaAnimData);
     LoadEnemyBazookaAttackRawData();
+    LoadAnimData(kBossEnemyPirateAnimPath, m_bossEnemyPirateAnimData);
+    LoadBossEnemyPirateAttackRawData();
+    LoadAnimData(kBossEnemyPirateR1AnimPath, m_bossEnemyPirateR1AnimData);
+    LoadBossEnemyPirateR1AttackRawData();
+    LoadAnimData(kBossEnemyKingmechAnimPath, m_bossEnemyKingmechAnimData);
+    LoadBossEnemyKingmechAttackRawData();
+    LoadAnimData(kBossArmAnimPath, m_bossArmAnimData);
     LoadEnemyStatusRawData();
 
 
@@ -121,6 +135,14 @@ void DataManager::LoadAnimData(const std::string& filePath, AnimData& animData)
 
         std::string key = line.substr(0, comma);
         std::string value = line.substr(comma + 1);
+        //3列目(animSpeed)//空欄なら1.0のまま
+        auto speedComma = value.find(',');
+        if (speedComma != std::string::npos)
+        {
+            std::string speed = value.substr(speedComma + 1);
+            value = value.substr(0, speedComma);
+            if (!speed.empty())animData.animSpeeds[key] = std::stof(speed);
+        }
         animData.animNames[key] = value;
     }
 }
@@ -142,6 +164,42 @@ void DataManager::LoadEnemyGunnerAttackRawData()
 void DataManager::LoadEnemyBazookaAttackRawData()
 {
     LoadRawCsv(kEnemyBazookaAttackPath, m_enemyBazookaAttackRawData);
+}
+
+void DataManager::ReloadBossEnemyPirateAnimData()
+{
+    //LoadAnimDataは追加するだけなので、消した行が残らないように空にしてから読む
+    m_bossEnemyPirateAnimData = AnimData();
+    LoadAnimData(kBossEnemyPirateAnimPath, m_bossEnemyPirateAnimData);
+}
+
+void DataManager::LoadBossEnemyPirateAttackRawData()
+{
+    LoadRawCsv(kBossEnemyPirateAttackPath, m_bossEnemyPirateAttackRawData);
+}
+
+void DataManager::ReloadBossEnemyPirateR1AnimData()
+{
+    //LoadAnimDataは追加するだけなので、消した行が残らないように空にしてから読む
+    m_bossEnemyPirateR1AnimData = AnimData();
+    LoadAnimData(kBossEnemyPirateR1AnimPath, m_bossEnemyPirateR1AnimData);
+}
+
+void DataManager::LoadBossEnemyPirateR1AttackRawData()
+{
+    LoadRawCsv(kBossEnemyPirateR1AttackPath, m_bossEnemyPirateR1AttackRawData);
+}
+
+void DataManager::ReloadBossEnemyKingmechAnimData()
+{
+    //LoadAnimDataは追加するだけなので、消した行が残らないように空にしてから読む
+    m_bossEnemyKingmechAnimData = AnimData();
+    LoadAnimData(kBossEnemyKingmechAnimPath, m_bossEnemyKingmechAnimData);
+}
+
+void DataManager::LoadBossEnemyKingmechAttackRawData()
+{
+    LoadRawCsv(kBossEnemyKingmechAttackPath, m_bossEnemyKingmechAttackRawData);
 }
 
 void DataManager::LoadRawCsv(const std::string& filePath, std::vector<std::vector<std::string>>& rawData)
@@ -517,6 +575,9 @@ bool DataManager::StringToEnemyType(const std::string& str, EnemyType& outType)
     if (str == "Swordman") { outType = EnemyType::Swordman; return true; }
     if (str == "Gunner") { outType = EnemyType::Gunner; return true; }
     if (str == "Bazooka") { outType = EnemyType::Bazooka; return true; }
+    if (str == "BossEnemyPirateR1") { outType = EnemyType::BossEnemyPirateR1; return true; }
+    if (str == "BossEnemyPirateR0") { outType = EnemyType::BossEnemyPirateR0; return true; }
+    if (str == "BossEnemyKingmech") { outType = EnemyType::BossEnemyKingmech; return true; }
     return false;
 }
 
@@ -524,7 +585,7 @@ bool DataManager::StringToEnemyInitialState(const std::string& str, EnemyInitial
 {
     if (str == "Idle") { outState = EnemyInitialState::Idle; return true; }
     if (str == "Patrol") { outState = EnemyInitialState::Patrol; return true; }
-    if (str == "Guard") { outState = EnemyInitialState::Guard; return true; }
+    if (str == "Watch") { outState = EnemyInitialState::Watch; return true; }
     return false;
 }
 

@@ -27,6 +27,10 @@ public:
 
 	void DebugDraw()const;
 
+	//デバッグ用//ボスの一つ手前のフェーズにして、敵を消し、プレイヤーをボスのエリアの手前に移す
+	//ボスのフェーズ中なら次のフェーズへ飛ぶ
+	void DebugSkipToBossPrevPhase();
+
 	//エリア(エディタ用)-----------------------------------------------------
 	const std::vector<PhaseArea>& GetAreas()const { return m_areas; }
 	void SetAreas(const std::vector<PhaseArea>& areas);//名前→番号も引き直す

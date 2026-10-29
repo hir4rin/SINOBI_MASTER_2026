@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Character/CharacterBase.h"
+enum class AsyncData : int;
 #include "Character/Enemy/State/Locomotion/EnemyIdle.h"
 #include "Character/Enemy/State/Locomotion/EnemyChase.h"
 #include "Character/Enemy/State/Defence/EnemyGuard.h"
@@ -18,8 +19,10 @@
 #include "State/Hit/EnemyHitDrop.h"
 #include "State/Hit/EnemyDie.h"
 #include "State/Hit/EnemyHitGround.h"
+#include "State/Hit/EnemyHitLargeHit.h"
 #include "State/Hit/EnemyHitAir.h"
 #include "State/Hit/EnemyAssasined.h"
+#include "State/Hit/EnemyAirAssasined.h"
 #include "State/Hit/EnemyPartBrokenKilled.h"
 #include "State/Hit/EnemyVanish.h"
 #include "Main/Game.h"
@@ -259,9 +262,11 @@ public:
 	void OnDamage(Collider& other, AttackData& data)override;
 
 	virtual void OnAssasined();//暗殺確定時
+	virtual void OnAirAssasined();//空中暗殺確定時
 	virtual void OnPartBrokenKilled(PartBrokenPattern pattern);//確殺確定時
 	bool GetIsExecuted()const { return m_isExecuted; }//確殺・暗殺が始まったかどうか//trueなら確殺・暗殺の対象にしない
 	bool GetIsPlayerFound()const { return m_isPlayerFound; }//プレイヤーを発見したかどうか//trueなら暗殺の対象にしない
+	void SetIsPlayerFound(bool isPlayerFound) { m_isPlayerFound = isPlayerFound; }
 
 	//部位破壊
 	virtual void OnHeadBreak() {};
@@ -269,6 +274,9 @@ public:
 
 	//部位破壊したかどうか
 	bool GetIsPartBroken() { return m_isPartBroken; }
+
+	//切り落としたパーツを投げ返す(PlayerStateBossPartThrowが投げるフレームで呼ぶ)
+	virtual void ThrowPart() {};
 
 	//頭を敵のほうに向かせる
 	void UpdateLookAtPlayer(int headFrame);
@@ -290,6 +298,13 @@ public:
 	bool GetIsVanished()const { return m_isVanished; }//消え終わったかどうか//trueならEnemyManagerが削除する
 	virtual void SetOpacity(float rate);//モデルの不透明度を設定する(1.0で不透明、0.0で透明)
 
+	//ロックオン・攻撃の吸い寄せの対象にするか
+	virtual bool IsTargetable()const { return true; }
+	//連撃の2撃目以降で、プレイヤーの方を向き直すか(EnemyAttack::Enter)//falseなら向きはそのまま
+	virtual bool IsChainAttackLookAtPlayer()const { return false; }
+	//一緒に出す敵(ボスの腕など)を作る//Initの後にEnemyManagerが呼んで登録する
+	virtual std::vector<std::shared_ptr<EnemyBase>> CreateChildEnemies() { return {}; }
+
 	//巡回ルートの設定//routeIdはPatrolRouteX.csvのXの番号
 	void SetPatrolRoute(int routeId);
 
@@ -299,7 +314,7 @@ public:
 	//巡回ルートを直接設定する
 	void SetPatrolPoints(const std::vector<EnemySpawnRoutePoint>& route);
 	//その場で見張る//今いる位置に、ずっと待機する巡回ポイントを1つだけ置く(視界でプレイヤーを探す処理を巡回と共通にするため)
-	void SetGuardPoint();
+	void SetWatchPoint();
 	//グループ(同じgroupIdの敵)
 	void SetGroupId(const std::string& groupId) { m_groupId = groupId; }
 	const std::string& GetGroupId()const { return m_groupId;}
@@ -309,6 +324,10 @@ public:
 
 	//デバッグ用//trueの間はIdleのままにする//被弾のStateには遷移するが、IdleからChaseなどには遷移しない
 	void SetDebugIdle(bool isDebugIdle);
+
+	//デバッグ用のImGuiウィンドウ(攻撃を選んで出す・ステータスを見る)//HasDebugWindowがtrueの敵だけEnemyManagerが呼ぶ
+	virtual bool HasDebugWindow()const { return false; }
+	void DrawDebugWindow();
 
 
 
@@ -357,6 +376,8 @@ protected:
 	void ToPlayerLook();//Playerの方を向く
 	void FinishHitProcess();//Hitの終了処理
 	void PlayBloodSplash(Collider& other);//血しぶきを再生する//otherは当たった攻撃の判定
+	int PlayBlood(AsyncData effect, const Vector3& pos);//posで血を再生する(+Zはプレイヤー→敵の向き)//再生ハンドルを返す
+	void PlayHeadBreakBlood();//首の付け根から血を出す(確殺・暗殺で頭を切ったとき)
 	//確殺、暗殺後のenemyの状態制御
 	void FinisherPerformanceProcess();//確殺、暗殺後のenemyの状態制御
 
@@ -390,6 +411,14 @@ private:
 	//影付きで中央に文字を描く
 	void DrawDebugTextCenter(int x, int y, const std::string& text, unsigned int color);
 
+	//デバッグウィンドウ(EnemyBaseDebugWindow.cpp)
+	void DrawDebugWindowStatus();//今の状態を見る
+	void DrawDebugWindowControl();//AIを止める・ステートを変える
+	void DrawDebugWindowAttack();//攻撃を選んで出す・攻撃のデータを変える
+	void DrawDebugWindowStatusEdit();//ステータスを変える
+	void DebugExecuteAttack(int index);//indexの攻撃を出す
+	void UpdateDebugLoopAttack();//Idleに戻ったら選んだ攻撃をもう一度出す
+
 protected:
 	std::shared_ptr<EnemyStateBase> m_currentState;
 	std::shared_ptr<EnemyStateBase> m_prevState;
@@ -421,7 +450,7 @@ protected:
 	//巡回ルートのデータ
 	std::vector<PatrolPoint> m_patrolPoints;
 	int m_currentPatrolIndex = -1;//現在の巡回ポイントのインデックス
-	bool m_isPlayerFound = false;//プレイヤーを発見したか(一度見つけたらtrueのまま)
+	bool m_isPlayerFound = true;//プレイヤーを発見したか(一度見つけたらtrueのまま)//巡回・見張りで配置したときだけfalse
 	std::string m_groupId;//同じグループの敵がプレイヤーを見つけたら一緒に気づく//空ならグループ無し
 
 
@@ -440,6 +469,16 @@ protected:
 	bool m_isLookAtPlayer = false;//頭をプレイヤーの方に向けるか
 
 	bool m_isDebugIdle = false;//デバッグ用//trueならIdleから他のStateに遷移しない
+	bool m_isDebugIdleGlobal = false;//EnemyManagerのI(全部の敵をIdle)がオンか
+
+	//デバッグウィンドウ
+	bool m_isDebugStopAI = false;//trueならこの敵だけIdleから動かない(選んだ攻撃は出せる)
+	bool m_isDebugLockHp = false;//trueなら毎フレームHPを最大に戻す
+	bool m_isDebugSkipPre = false;//trueなら予備動作を飛ばして攻撃する
+	bool m_isDebugLoopAttack = false;//trueならIdleに戻ってから選んだ攻撃をもう一度出す
+	int m_debugSelectedAttack = 0;//ウィンドウで選んでいる攻撃のindex
+	float m_debugLoopInterval = 60.0f;//繰り返すまでの間隔(実フレーム)
+	float m_debugLoopTimer = 0.0f;//Idleに戻ってからの時間
 
 
 
@@ -461,8 +500,10 @@ protected:
 	friend class EnemyHitDrop;
 	friend class EnemyDie;
 	friend class EnemyHitGround;
+	friend class EnemyHitLargeHit;
 	friend class EnemyHitAir;
 	friend class EnemyAssasined;
+	friend class EnemyAirAssasined;
 	friend class EnemyPartBrokenKilled;
 	friend class EnemyVanish;
 

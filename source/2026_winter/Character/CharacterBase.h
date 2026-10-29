@@ -44,6 +44,8 @@ public:
 		float kAttackColOffset;//攻撃判定を前に出す距離
 		bool isKirimomi;//吹っ飛ぶかどうか
 		AttackType attackType = AttackType::None;//弱攻撃か強攻撃か//プレイヤーの通常攻撃以外はNone
+		bool isLastHit = false;//最後の区間か
+		int comboIndex = -1;//コンボの段数
 	};
 
 	//被ダメ情報
@@ -115,6 +117,7 @@ protected:
 	float m_tiltAngle = 0.0f;//今の傾き(モデルの前後軸まわり)
 	float m_targetTiltAngle = 0.0f;//目標の傾き
 	float m_headAngle = 0.0f;//今の頭の向き(体の正面からの角度)
+	float m_modelScale = 1.0f;//モデルの大きさ//ボスを大きくする用
 
 
 	Vector3 m_targetVec = {};//移動したい方向のベクトル
@@ -127,6 +130,8 @@ protected:
 	Animation m_anim;//アニメーション(アニメーションブレンド、アニメーション再生など)//今回はフレームで管理するように後で修正がいる
 	std::unordered_map<std::string, std::string> m_animNames;//アニメーションの名前を管理
 	const std::string& GetAnimName(const std::string& key)const;//アニメーションの名前を取得する
+	std::unordered_map<std::string, float> m_animSpeeds;//アニメーションの再生速度(アニメCSVの3列目)//キーはGetAnimNameと同じ
+	float GetAnimSpeed(const std::string& key)const;//アニメーションの再生速度を取得する//無ければ1.0//ChangeAnimのtimescaleに渡す
 
 	std::shared_ptr<HitCol> m_hitCol;//やられ判定
 

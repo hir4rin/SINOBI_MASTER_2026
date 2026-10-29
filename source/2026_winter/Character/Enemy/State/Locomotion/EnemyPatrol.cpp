@@ -32,6 +32,8 @@ void EnemyPatrol::Enter()
 {
 	auto owner = m_owner.lock();
 	if (!owner)return;
+	//落下禁止を有効化
+	owner->SetPreventFall(true);
 
 	//パトロールポイントのインデックスを取得
 	int currentIndex = owner->m_currentPatrolIndex;
@@ -50,7 +52,8 @@ void EnemyPatrol::Enter()
 
 	//開始時の速度に合わせてアニメーションを設定
 	m_wasWalking = owner->GetRigidBody().m_vel.Magnitude() > 0.1f;
-	owner->m_anim.ChangeAnim(owner->GetAnimName(m_wasWalking ? "Walk" : "Idle"), true, 0.7f);
+	const char* animKey = m_wasWalking ? "Walk" : "Idle";
+	owner->m_anim.ChangeAnim(owner->GetAnimName(animKey), true, 0.7f * owner->GetAnimSpeed(animKey));
 }
 
 void EnemyPatrol::Update()
@@ -104,7 +107,8 @@ void EnemyPatrol::Update()
 	if (isWalking != m_wasWalking)
 	{
 		m_wasWalking = isWalking;
-		owner->m_anim.ChangeAnim(owner->GetAnimName(isWalking ? "Walk" : "Idle"), true, 0.5f);
+		const char* animKey = isWalking ? "Walk" : "Idle";
+		owner->m_anim.ChangeAnim(owner->GetAnimName(animKey), true, 0.5f * owner->GetAnimSpeed(animKey));
 	}
 
 
@@ -118,6 +122,10 @@ void EnemyPatrol::Update()
 
 void EnemyPatrol::Exit()
 {
+	auto owner = m_owner.lock();
+	if (!owner)return;
+	//落下禁止を無効化
+	owner->SetPreventFall(false);
 }
 
 void EnemyPatrol::DebugDraw()

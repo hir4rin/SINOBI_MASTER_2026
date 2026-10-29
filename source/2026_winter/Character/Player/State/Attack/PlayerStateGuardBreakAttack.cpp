@@ -27,9 +27,10 @@ void PlayerStateGuardBreakAttack::Enter()
 {
 	auto player = m_owner.lock();
 	if (!player) return;
+	//落下禁止を有効化
+	player->SetPreventFall(true);
 	DecideAttackDirection();
 
-	player->m_isRaven = true;
 	player->m_isCameraFocusOverride = false;
 	player->m_cameraFocusEnemy.reset();
 
@@ -61,10 +62,12 @@ void PlayerStateGuardBreakAttack::Exit()
 	auto player = m_owner.lock();
 	if (player)
 	{
+		//落下禁止を無効化
+		player->SetPreventFall(false);
 		player->m_comboInfo.currentComboIndex = ComboIndex::None;
 		player->m_comboInfo.isHit = false;
-		player->m_isRaven = false;
 		player->m_isCameraFocusOverride = false;
+		player->m_bossPartThrowTarget.reset();//投げに行かずに抜けたとき用(投げのステートは作るときに受け取っている)
 	}
 
 	//TODO: 専用カメラ・演出の終了
@@ -138,6 +141,18 @@ void PlayerStateGuardBreakAttack::UpdateUpAttack()
 {
 	auto player = m_owner.lock();
 	if (!player) return;
+
+	//ボスのパーツを切り落としたら、切り上げの後は自動で投げ返す
+	if (!player->m_bossPartThrowTarget.expired())
+	{
+		if (player->m_anim.GetAnimEndFlag())
+		{
+			player->ChangeState(std::make_shared<PlayerStateBossPartThrow>(m_owner));
+			return;
+		}
+		player->m_anim.Update();
+		return;
+	}
 
 	AttackInputCheck();
 

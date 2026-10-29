@@ -53,6 +53,8 @@ void PlayerStateAttack::Enter()
 {
 	auto player = m_owner.lock();
 	if (!player) return;
+	//落下禁止を有効化
+	player->SetPreventFall(true);
 	//攻撃の方向を決める(入力→ロックオン→内部ターゲット)
 	DecideAttackDirection();
 
@@ -227,11 +229,12 @@ void PlayerStateAttack::Exit()
 	auto player = m_owner.lock();
 	if (player)
 	{
+		//落下禁止を無効化
+		player->SetPreventFall(false);
 		player->m_comboInfo.isHit = false;
 		if (!m_isComboTransition)
 		{
 			player->m_comboInfo.currentComboIndex = ComboIndex::None;//攻撃していない状態に戻す
-			player->m_isRaven = false;//鴉状態を解除する
 		}
 		
 	}
@@ -301,6 +304,7 @@ void PlayerStateAttack::CheckNoLockOnTargetEnemyForAirAttack5()
 	{
 		if (!enemy)continue;
 		if (enemy->GetIsLifeZero())continue;
+		if (!enemy->IsTargetable())continue;
 		//地上の敵だけを対象にする
 		if (!enemy->IsFloor())continue;
 
@@ -344,6 +348,7 @@ bool PlayerStateAttack::SearchNearbyAirEnemy()
 	{
 		if (!enemy)continue;
 		if (enemy->GetIsLifeZero())continue;
+		if (!enemy->IsTargetable())continue;
 		if (enemy->IsFloor())continue;//地上の敵は対象外
 
 		Vector3 enemyPos = enemy->GetRigidBody().GetPos();
@@ -427,8 +432,6 @@ void PlayerStateAttack::StartCombo(int comboIndex)
 	if (comboIndex < 0 || comboIndex >= player->m_comboChain.size())return;
 	//isHitをfalseにする
 	player->m_comboInfo.isHit = false;
-	//鴉状態を解除する
-	player->m_isRaven = false;
 	//現在のコンボの段数を更新
 	player->m_comboInfo.currentComboIndex = comboIndex;
 	m_isComboInputReserved = false;//コンボ入力の予約を解除する
@@ -442,8 +445,6 @@ void PlayerStateAttack::AttackFinishProcess()
 	player->m_comboInfo.isHit = false;//攻撃が当たったかどうか
 	//y軸の速度を0に戻す
 	player->m_rb.m_vel.y = 0.0f;
-	//鴉状態を解除する
-	player->m_isRaven = false;
 
 	//攻撃の当たり判定の開放
 	m_attackCol->SetIsActive(false);
@@ -485,8 +486,6 @@ int PlayerStateAttack::SelectAnimInit()
 				currentComboIndex = ComboIndex::AirHeavyAttack1;//空中強攻撃1
 			}
 		}
-		//スキル攻撃はPlayerStateSkillAttackで行うので、通常攻撃では鴉状態を解除する
-		player->m_isRaven = false;//鴉状態を解除する
 		//前の攻撃(着地の衝撃など)で当たったフラグが残っていることがあるので戻す//残っていると突進しない
 		player->m_comboInfo.isHit = false;
 		//現在のコンボの段数を更新する
@@ -499,7 +498,6 @@ int PlayerStateAttack::SelectAnimInit()
 		{
 			player->m_comboInfo.isAirAttack = true;
 		}
-		player->m_isRaven = false;//鴉状態を解除する
 
 		//コンボの段数が-1でないときは、次のコンボを再生する
 		//currentComboIndex = m_nextComboIndex;//次のコンボの段数を取得する

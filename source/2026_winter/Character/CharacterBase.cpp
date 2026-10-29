@@ -73,8 +73,10 @@ void CharacterBase::UpdateAngleAndPos()
 	MATRIX transmat = MGetTranslate(m_rb.m_pos.ToDxLibVector());
 	Matrix4x4 trans = Matrix4x4::FromDxLibMatrix(transmat);
 
-	//傾ける→Y回転→移動の順
-	Matrix4x4 mtx = trans * rotY * tilt;
+	Matrix4x4 scale = Matrix4x4::FromDxLibMatrix(MGetScale(VGet(m_modelScale, m_modelScale, m_modelScale)));
+
+	//拡縮→傾ける→Y回転→移動の順
+	Matrix4x4 mtx = trans * rotY * tilt * scale;
 	MV1SetMatrix(m_modelHandle, Matrix4x4::ToDxLibMatrix(mtx));
 }
 
@@ -140,5 +142,12 @@ const std::string& CharacterBase::GetAnimName(const std::string& key) const
 {
 	auto it = m_animNames.find(key);
 	assert(it != m_animNames.end() && "指定されたキーが見つかりませんでした");
+	return it->second;
+}
+
+float CharacterBase::GetAnimSpeed(const std::string& key) const
+{
+	auto it = m_animSpeeds.find(key);
+	if (it == m_animSpeeds.end())return 1.0f;
 	return it->second;
 }
