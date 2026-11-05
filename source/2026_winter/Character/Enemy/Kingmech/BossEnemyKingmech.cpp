@@ -11,7 +11,12 @@
 #include "Battle/BattleManager.h"
 #include "Battle/AttackTokenManager.h"
 #include "Character/Enemy/Kingmech/Part/KingmechGatling.h"
+#include "Character/Enemy/Kingmech/Part/KingmechMissile.h"
+#include <algorithm>
+#include "imgui.h"
 #include "Character/Enemy/Kingmech/State/BossPartThrow.h"
+#include "Character/Enemy/Kingmech/State/KingmechMissileTurn.h"
+#include "Character/Enemy/Kingmech/State/KingmechGatlingSupply.h"
 
 
 
@@ -19,13 +24,13 @@ namespace
 {
 	const std::string kStatusType = "BossEnemyKingmech";//EnemyStatus.csvのtype
 
-	constexpr float kModelScale = 2.3f;//モデルの大きさ//Tポーズで高さ約200なので約460
+	constexpr float kModelScale = 3.45f;//モデルの大きさ//Tポーズで高さ約200なので約690
 
 
 	constexpr float kToTargetPower = 3.0f;//プレイヤーの正面に行くようにknockBackする力
 
 
-	constexpr float kEnemyDistance = 50.0f;
+	constexpr float kEnemyDistance = 75.0f;
 
 	constexpr int kNormalAttackIndex = 0;//横斬り
 	constexpr int kLargeRangedAttackIndex = 5;
@@ -34,9 +39,11 @@ namespace
 	constexpr int kRushAttackIndex = 6;//とびかかり(突進)
 
 	constexpr int kLargeAttackInterval = 10;//この回数攻撃したら全体攻撃
+	constexpr int kMissileTurnInterval = 6;//この回数攻撃したらミサイルのターン
+	constexpr int kGatlingSupplyInterval = 2;//ガトリングを失ってからこの回数攻撃したら補給
 	constexpr float kBackDot = -0.5f;//正面との内積がこれより小さければ背後(120度より後ろ)
-	constexpr float kRushMinDistance = 400.0f;//この距離より遠ければ突進
-	constexpr float kRushMaxDistance = 1000.0f;//突進を出す最大の距離
+	constexpr float kRushMinDistance = 600.0f;//この距離より遠ければ突進
+	constexpr float kRushMaxDistance = 1500.0f;//突進を出す最大の距離
 
 	constexpr int kGatlingExplodeDamage = 300;//投げ返したガトリングの爆発のダメージ
 
@@ -52,6 +59,7 @@ BossEnemyKingmech::BossEnemyKingmech(std::weak_ptr<Player> player, Vector3 start
 	InitializeAttackList(DataManager::GetInstance().GetBossEnemyKingmechAttackRawData());
 
 	m_rb.m_pos = startPos;
+	m_arenaCenter = startPos;//出てくる位置を闘技場の中央とする
 	m_hp = m_status.hp;
 
 	m_modelHandle = MV1DuplicateModel(System::GetInstance().GetHandle(AsyncData::KingmechModel));
@@ -80,6 +88,7 @@ BossEnemyKingmech::~BossEnemyKingmech()
 		m_currentState->Exit();//状態を抜ける
 	}
 	m_gatling.reset();
+	m_missiles.clear();//残りのミサイルは消す
 	MV1DeleteModel(m_modelHandle);
 }
 
@@ -143,6 +152,23 @@ void BossEnemyKingmech::Update()
 	}
 	m_wasIPressed = isIPressed;
 
+	//デバッグ用//Mを押した瞬間だけプレイヤーの足元にミサイルを1発撃つ
+	bool isMPressed = CheckHitKey(KEY_INPUT_M) != 0;
+	if (isMPressed && !m_wasMPressed)
+	{
+		if (auto player = m_player.lock())
+		{
+			FireMissile(player->GetRigidBody().GetPos());
+		}
+	}
+	m_wasMPressed = isMPressed;
+
+	for (auto& missile : m_missiles)
+	{
+		missile->Update();
+	}
+	std::erase_if(m_missiles, [](const std::unique_ptr<KingmechMissile>& missile) { return missile->IsFinished(); });
+
 	//攻撃のクールタイムを減らす
 	if (m_attackCoolTime > 0.0f)
 	{
@@ -197,6 +223,33 @@ void BossEnemyKingmech::ThrowPart()
 	m_gatling->Throw();
 }
 
+void BossEnemyKingmech::FireMissile(const Vector3& landPos)
+{
+	m_missiles.push_back(std::make_unique<KingmechMissile>(GetSharedPtr(), landPos));
+}
+
+void BossEnemyKingmech::DrawDebugWindowExtra()
+{
+	ImGui::SeparatorText("Kingmech");
+	//死亡・処刑中は変えない
+	const bool canChange = !m_isLifeZero && !m_isExecuted;
+	if (!canChange)ImGui::BeginDisabled();
+	if (ImGui::Button("Missile Turn"))
+	{
+		m_attackCountSinceMissile = 0;
+		ChangeState(std::make_shared<KingmechMissileTurn>(GetWeakPtr()));
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Gatling Supply"))
+	{
+		m_gatling->DebugRemove();
+		m_attackCountSinceCut = 0;
+		ChangeState(std::make_shared<KingmechGatlingSupply>(GetWeakPtr()));
+	}
+	if (!canChange)ImGui::EndDisabled();
+	ImGui::Text("Missile %d / %d  Supply %d / %d", m_attackCountSinceMissile, kMissileTurnInterval, m_attackCountSinceCut, kGatlingSupplyInterval);
+}
+
 void BossEnemyKingmech::CutGatling(Collider& other, AttackData& data)
 {
 	m_hp -= static_cast<int>(data.attackPower);
@@ -204,7 +257,6 @@ void BossEnemyKingmech::CutGatling(Collider& other, AttackData& data)
 	PlayBloodSplash(other);
 
 	m_gatling->Cut();
-	m_isPartBroken = true;
 	ChangeState(std::make_shared<BossPartThrow>(GetWeakPtr()));
 
 	//プレイヤーに投げさせる//targetをセット
@@ -242,8 +294,9 @@ int BossEnemyKingmech::SelectAttackIndex()
 	const float distance = toPlayer.Magnitude();
 
 	//上から順に条件を見て、当てはまったらその攻撃
-	//何回か攻撃したら全体攻撃
-	if (m_attackCountSinceLarge >= kLargeAttackInterval &&
+	//何回か攻撃したら全体攻撃//ガトリングが無い間は出さない
+	if (m_gatling->GetPhase() == KingmechGatling::Phase::Attached &&
+		m_attackCountSinceLarge >= kLargeAttackInterval &&
 		distance <= GetAttackNode(kLargeRangedAttackIndex).attackRange)
 	{
 		return kLargeRangedAttackIndex;
@@ -293,6 +346,11 @@ std::shared_ptr<EnemyStateBase> BossEnemyKingmech::NextAfterAttackEnd()
 		{
 			++m_attackCountSinceLarge;
 		}
+		++m_attackCountSinceMissile;
+		if (m_gatling->GetPhase() == KingmechGatling::Phase::Gone)
+		{
+			++m_attackCountSinceCut;
+		}
 	}
 
 	//連撃//今の攻撃にnextAttackがあれば、予備動作なしで次の攻撃へ
@@ -309,6 +367,20 @@ std::shared_ptr<EnemyStateBase> BossEnemyKingmech::NextAfterAttackEnd()
 
 std::shared_ptr<EnemyStateBase> BossEnemyKingmech::NextAfterIdle()
 {
+	//ガトリングを失って何回か攻撃したら補給
+	if (m_gatling->GetPhase() == KingmechGatling::Phase::Gone &&
+		m_attackCountSinceCut >= kGatlingSupplyInterval)
+	{
+		m_attackCountSinceCut = 0;
+		return std::make_shared<KingmechGatlingSupply>(GetWeakPtr());
+	}
+	//何回か攻撃したらミサイルのターン
+	if (m_attackCountSinceMissile >= kMissileTurnInterval)
+	{
+		m_attackCountSinceMissile = 0;
+		return std::make_shared<KingmechMissileTurn>(GetWeakPtr());
+	}
+
 	//ボスはすぐ攻撃//出せる攻撃が無ければIdleのまま
 	//あとでSelectAttackIndexを変えないといけない
 	const int attackIndex = SelectAttackIndex();
@@ -349,6 +421,13 @@ std::shared_ptr<EnemyStateBase> BossEnemyKingmech::NextOnPlayerFound()
 std::shared_ptr<EnemyStateBase> BossEnemyKingmech::NextAfterRecover()
 {
 	return EnemyBase::NextAfterRecover();
+}
+
+bool BossEnemyKingmech::IsAttackFlowState(const std::shared_ptr<EnemyStateBase>& state) const
+{
+	return EnemyBase::IsAttackFlowState(state) ||
+		std::dynamic_pointer_cast<KingmechMissileTurn>(state) ||
+		std::dynamic_pointer_cast<KingmechGatlingSupply>(state);
 }
 
 void BossEnemyKingmech::OnDamage(Collider& other, AttackData& data)

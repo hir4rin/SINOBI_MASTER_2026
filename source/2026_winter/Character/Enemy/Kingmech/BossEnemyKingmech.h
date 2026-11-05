@@ -2,8 +2,10 @@
 #include "Character/Enemy/EnemyBase.h"
 #include "Math/Matrix4x4.h"
 #include <memory>
+#include <vector>
 
 class KingmechGatling;
+class KingmechMissile;
 
 //新しいボス(Kingmech)//中身は BossEnemyPirateR0 と同じ(剣・部位破壊で落ちるパーツは無し)
 //ステータス・攻撃・アニメのCSVは BossEnemyKingmech〜 を使う
@@ -19,6 +21,7 @@ public:
     void Draw()override;
     bool IsChainAttackLookAtPlayer()const override { return true; }//連撃の2撃目でプレイヤーの方を向く
     bool HasDebugWindow()const override { return true; }//デバッグウィンドウを出す
+    void DrawDebugWindowExtra()override;//ミサイルのターンに行くボタン
 
     void OnCollision(Collider& other)override;
     void OnDamage(Collider& other, AttackData& data)override;
@@ -28,8 +31,12 @@ public:
     void OnPartBreak()override;//落とすパーツが無いのでフラグだけ
 
     void ThrowPart()override;//ガトリングを投げ返す
+
+    void FireMissile(const Vector3& landPos);//ミサイルを1発追加する
+    bool HasMissile()const { return !m_missiles.empty(); }//飛んでいるミサイルがあるか
 protected:
     int SelectAttackIndex()override;//出す攻撃を選ぶ(無ければ-1)//ボス用の分岐
+    bool IsAttackFlowState(const std::shared_ptr<EnemyStateBase>& state)const override;//ミサイルのターンも攻撃中
 
     //ステートの切り替え//今は EnemyBase と同じ
     std::shared_ptr<EnemyStateBase> NextAfterIdle()override;//Idleの待機時間が終わった
@@ -45,13 +52,20 @@ private:
     void OnGatlingExploded();//投げ返されたガトリングが爆発した//ガトリングから呼ばれる
 
     std::shared_ptr<KingmechGatling> m_gatling;//右腕のガトリング
+    std::vector<std::unique_ptr<KingmechMissile>> m_missiles;//飛んでいるミサイル
 
     int m_attackCountSinceLarge = 0;//前の全体攻撃から何回攻撃したか
+    int m_attackCountSinceMissile = 0;//前のミサイルのターンから何回攻撃したか
+    int m_attackCountSinceCut = 0;//ガトリングを失ってから何回攻撃したか
+    Vector3 m_arenaCenter;//闘技場の中央//ミサイルのターンで移動する
 
     bool m_wasQPressed = false;//前のフレームにQを押していたか//デバッグ用の攻撃データ読み込み直しを押した瞬間だけ行うため
     bool m_wasIPressed = false;//前のフレームにIを押していたか//デバッグ用のアニメCSV読み込み直し
+    bool m_wasMPressed = false;//前のフレームにMを押していたか//デバッグ用のミサイル発射
 
     friend class BossPartThrow;
+    friend class KingmechMissileTurn;
+    friend class KingmechGatlingSupply;
     friend class KingmechGatling;
 };
 

@@ -93,6 +93,15 @@
     <ClCompile Include="Stage\Stage.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="Stage\StageLights.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\CharacterLook.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Main\FrameProfiler.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="Stage\WallZone\WallZone.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -255,6 +264,12 @@
     <ClCompile Include="UI\KessatsuUI.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="UI\PlayerHUD.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\MenuUI.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="DataLoader\DataManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -274,6 +289,9 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Collision\AttackCol.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Collision\FixedAttackCol.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Collision\HitCol.cpp">
@@ -327,7 +345,16 @@
     <ClCompile Include="Character\Enemy\Kingmech\Part\KingmechGatling.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="Character\Enemy\Kingmech\Part\KingmechMissile.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="Character\Enemy\Kingmech\State\BossPartThrow.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Character\Enemy\Kingmech\State\KingmechMissileTurn.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Character\Enemy\Kingmech\State\KingmechGatlingSupply.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Character\Player\State\Attack\PlayerStateBossPartThrow.cpp">
@@ -560,6 +587,9 @@
     <ClInclude Include="Stage\Stage.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Stage\StageLights.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="Stage\WallZone\WallZone.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -585,6 +615,12 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Render\TempTopLight.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\CharacterLook.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Main\FrameProfiler.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Stage\SkyBox.h">
@@ -737,6 +773,12 @@
     <ClInclude Include="UI\KessatsuUI.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="UI\PlayerHUD.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\MenuUI.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="DataLoader\DataManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -756,6 +798,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Collision\AttackCol.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Collision\FixedAttackCol.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Collision\SkillAttackCol.h">
@@ -812,7 +857,16 @@
     <ClInclude Include="Character\Enemy\Kingmech\Part\KingmechGatling.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Character\Enemy\Kingmech\Part\KingmechMissile.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="Character\Enemy\Kingmech\State\BossPartThrow.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Character\Enemy\Kingmech\State\KingmechMissileTurn.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Character\Enemy\Kingmech\State\KingmechGatlingSupply.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Character\Player\State\Attack\PlayerStateBossPartThrow.h">
@@ -959,6 +1013,12 @@
       <Filter>リソース ファイル</Filter>
     </None>
     <None Include="Render\Shader\EnemyBlackPS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Render\Shader\LitModelPS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Render\Shader\CharacterLookPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </None>
     <None Include="Render\Shader\VertexShader.h">

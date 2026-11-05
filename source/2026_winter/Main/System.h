@@ -2,8 +2,12 @@
 #include <unordered_map>
 //#include "Sound/SoundManager.h"
 #include <memory>
+#include <string>
+#include <vector>
 
 class BattleManager;
+enum class StageType : int;
+enum class EnemyType : int;
 
 
 //非同期ロードリストの種類//ここ治す
@@ -11,7 +15,6 @@ enum class AsyncData : int
 {
 	//プレイヤー
 	PlayerModel,
-	PlayerAttackModel,							
 	PlayerWeaponModel,
 	PlayerWingModel,
 	PlayerEffectSkill,
@@ -42,6 +45,9 @@ enum class AsyncData : int
 	BossAttackHadouEffect,
 	BossAttackFireEffect,
 	BossSummonEffect,
+	KingmechMissileWarningEffect,//ミサイルの雨の予告の円(45F)
+	KingmechMissileFallEffect,//上から落ちてくるミサイル(15Fで着弾)
+	KingmechMissileExplodeEffect,//ミサイルの爆発
 	//マスコット
 	MascotModel,
 	//ステージ
@@ -52,6 +58,8 @@ enum class AsyncData : int
 	TrainStageModel,//列車ステージの見た目(tools/TrainStage で生成)
 	TrainStageColModel,//列車ステージの当たり判定(箱だけの軽いモデル)
 	TrainTunnelModel,//列車ステージで流し続けるトンネル(Z方向に13200でループする)
+	CyberStageModel,//ステージ1の見た目(UnityのCyberStageToolで生成)
+	CyberStageColModel,//ステージ1の当たり判定(箱だけの軽いモデル)
 	AreaWallEffect,
 	WallBreakEffect,
 	//デバッグ
@@ -60,8 +68,7 @@ enum class AsyncData : int
 	GhostSkill3FallEffect,//スキル3の落下中の分身と残像//プレイヤーに追従させる
 	GhostSkill3ImpactEffect,//スキル3の着地の分身と閃光
 	BloodWingEffect,//必殺技状態の黒い片翼//必殺技状態の間プレイヤーの背中に追従させる
-	PlayerUltWeaponModel,//必殺技(PlayerStateUlt)中だけ持たせる刀身の長い刀
-	//敵が斬られたときの血しぶき(3パターンからランダムで再生する)
+	PlayerUltWeaponModel,//必殺技(PlayerStateUlt)中だけ持たせる刀身の長い刀	//敵が斬られたときの血しぶき(3パターンからランダムで再生する)
 	BloodSplashEffectA,//横(+Z)に噴き出す
 	BloodSplashEffectB,//真上に噴き上がる
 	BloodSplashEffectC,//横に低く扇状に広がる(液体多め)
@@ -105,10 +112,15 @@ public:
 	}
 
 	/// <summary>
-	/// モデル・エフェクトを非同期で読み込み、ハンドルを保存する
+	/// どのステージでも使うもの(プレイヤー・エフェクト)を非同期で読み込む(起動時に1回)
 	/// </summary>
-	/// <note>戻った時点では読み込みが終わっていないので、GetASyncLoadNum()が0になるまで待ってから使う</note>
-	void LoadAll();
+	/// <note>戻った時点では読み込みが終わっていないので、IsLoading()がfalseになるまで待ってから使う</note>
+	void LoadCommon();
+	/// <summary>
+	/// ステージのモデルと、そのステージの敵配置に出てくる敵を読み込む(前のステージの分は消す)
+	/// </summary>
+	/// <note>同じステージなら何もしない。同期で読むので終わるまで戻らない</note>
+	void LoadStage(StageType type);
 	int GetHandle(AsyncData key) { return m_asyncHandles[key]; }
 
 	void Update();
@@ -128,6 +140,15 @@ private:
 	std::weak_ptr<BattleManager> m_battleMgr;//バトルマネージャー
 
 	std::unordered_map<AsyncData, int> m_asyncHandles; //非同期ロードのハンドルを保持するマップ
+
+	//ステージ用に読むもの(まだ読んでいなければ読み、ReleaseStage で消す)
+	void LoadStageModel(AsyncData key, const std::string& path);
+	void LoadStageEffect(AsyncData key, const std::string& path);
+	void LoadEnemy(EnemyType type);
+	void ReleaseStage();
+	std::vector<AsyncData> m_stageModels;
+	std::vector<AsyncData> m_stageEffects;
+	int m_loadedStage = -1;//読み込んであるステージ(StageType)。-1は無し
 
 	//SoundManager m_soundManager;//サウンドマネージャー//GetSoundManager()経由でPlayBgm等を呼ぶ
 };

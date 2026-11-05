@@ -4,6 +4,8 @@
 #include "Main/System.h"
 #include "Collision/CollisionManager.h"
 #include "Collision/PolygonShape.h"
+#include "Render/ModelShaderManager.h"
+#include <algorithm>
 #include <cmath>
 
 namespace
@@ -32,6 +34,13 @@ namespace
 	constexpr float kTrainFogStart = 2000.0f;//フォグがかかり始める距離
 	constexpr float kTrainFogEnd = 5000.0f;//真っ暗になる距離(SceneMainのファークリップ)
 	constexpr int kTrainFogColor = 8;//フォグの色(ほぼ黒)
+
+	//ステージ1の夜のフォグ(近くはそのまま、遠くの建物を暗い青に沈める)
+	constexpr float kNightFogStart = 1500.0f;
+	constexpr float kNightFogEnd = 9000.0f;
+	constexpr int kNightFogR = 10;
+	constexpr int kNightFogG = 12;
+	constexpr int kNightFogB = 24;
 }
 
 
@@ -60,12 +69,14 @@ void Stage::TitleInit()
 
 	MV1SetMatrix(m_stageViewHandle, transmat_graphic);
 	MV1SetScale(m_stageViewHandle, VGet(kTitleStageScale, kTitleStageScale, kTitleStageScale));
+	BuildMeshBoxes();
 }
 
 void Stage::GameInit(const StageInfo& info)
 {
 	m_stageModelHandle = MV1DuplicateModel(System::GetInstance().GetHandle(info.colModel));
 	m_stageViewHandle = MV1DuplicateModel(System::GetInstance().GetHandle(info.model));
+	m_useNightFog = info.useNightFog;
 	if (info.useTrainTunnel)
 	{
 		m_tunnelHandle = MV1DuplicateModel(System::GetInstance().GetHandle(AsyncData::TrainTunnelModel));
@@ -104,6 +115,11 @@ void Stage::GameInit(const StageInfo& info)
 	MV1SetMatrix(m_stageModelHandle, Matrix4x4::ToDxLibMatrix(trans));
 	MV1SetMatrix(m_stageViewHandle, transmat_graphic);
 	MV1RefreshCollInfo(m_stageModelHandle, -1);//ずらした位置で当たり判定を作り直す
+	BuildMeshBoxes();
+
+	//明かりのCSV(番号は敵配置と同じ。無いステージは何もしない)
+	m_lights.Load(info.enemySpawnNumber, m_pos_graphic);
+	if (m_useNightFog) m_lights.SetFogRange(kNightFogStart, kNightFogEnd);
 }
 
 Stage::~Stage()
@@ -143,12 +159,22 @@ void Stage::Draw() const
 		SetFogColor(kTrainFogColor, kTrainFogColor, kTrainFogColor);
 		SetFogStartEnd(kTrainFogStart, kTrainFogEnd);
 	}
+	const bool useNightFog = m_useNightFog && !GetFogEnable();
+	if (useNightFog)
+	{
+		SetFogEnable(TRUE);
+		SetFogMode(DX_FOGMODE_LINEAR);
+		SetFogColor(kNightFogR, kNightFogG, kNightFogB);
+		SetFogStartEnd(kNightFogStart, kNightFogEnd);
+	}
 
-	MV1DrawModel(m_stageViewHandle);
+	//いつもの光＋明かりを1回で描く(明かりの無いステージはいつもの描画)
+	CullMeshes();
+	ModelShaderManager::GetInstance().DrawModel(m_stageViewHandle);
 	DrawTunnel();
 
 	//キャラやエフェクトにはかけない
-	if (useTrainFog)
+	if (useTrainFog || useNightFog)
 	{
 		SetFogEnable(FALSE);
 	}
@@ -169,6 +195,41 @@ void Stage::DrawTunnel() const
 		const float z = m_pos_graphic.z + i * kTunnelLength + m_tunnelScroll;
 		MV1SetPosition(m_tunnelHandle, VGet(m_pos_graphic.x, m_pos_graphic.y + kTunnelOffsetY, z));
 		MV1DrawModel(m_tunnelHandle);
+	}
+}
+
+void Stage::BuildMeshBoxes()
+{
+	m_meshBoxes.assign(MV1GetMeshNum(m_stageViewHandle), MeshBox{});
+	for (int frame = 0; frame < MV1GetFrameNum(m_stageViewHandle); ++frame)
+	{
+		const MATRIX mat = MV1GetFrameLocalWorldMatrix(m_stageViewHandle, frame);
+		for (int i = 0; i < MV1GetFrameMeshNum(m_stageViewHandle, frame); ++i)
+		{
+			const int mesh = MV1GetFrameMesh(m_stageViewHandle, frame, i);
+			const VECTOR localMin = MV1GetMeshMinPosition(m_stageViewHandle, mesh);
+			const VECTOR localMax = MV1GetMeshMaxPosition(m_stageViewHandle, mesh);
+			//8つの角をワールドに直して、それを囲む箱にする
+			MeshBox box = { VTransform(localMin, mat), VTransform(localMin, mat) };
+			for (int corner = 1; corner < 8; ++corner)
+			{
+				const VECTOR local = VGet((corner & 1) ? localMax.x : localMin.x, (corner & 2) ? localMax.y : localMin.y, (corner & 4) ? localMax.z : localMin.z);
+				const VECTOR world = VTransform(local, mat);
+				box.min = VGet((std::min)(box.min.x, world.x), (std::min)(box.min.y, world.y), (std::min)(box.min.z, world.z));
+				box.max = VGet((std::max)(box.max.x, world.x), (std::max)(box.max.y, world.y), (std::max)(box.max.z, world.z));
+			}
+			m_meshBoxes[mesh] = box;
+		}
+	}
+}
+
+void Stage::CullMeshes()const
+{
+	//今のカメラの視界に箱が少しでも入っていれば描く
+	for (int mesh = 0; mesh < static_cast<int>(m_meshBoxes.size()); ++mesh)
+	{
+		const bool isOutside = CheckCameraViewClip_Box(m_meshBoxes[mesh].min, m_meshBoxes[mesh].max) != FALSE;
+		MV1SetMeshVisible(m_stageViewHandle, mesh, isOutside ? FALSE : TRUE);
 	}
 }
 

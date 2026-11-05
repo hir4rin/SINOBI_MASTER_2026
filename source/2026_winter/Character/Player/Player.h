@@ -28,6 +28,7 @@
 #include "Character/Player/State/Attack/PlayerStateGuardBreakAttack.h"//以下同文
 #include "Character/Player/State/Attack/PlayerStateBossPartThrow.h"//以下同文
 #include "DataLoader/AnimData.h"
+#include "Render/CharacterLook.h"
 #include <memory>
 
 class PlayerState;
@@ -210,6 +211,8 @@ public:
 	//ゲージの取得
 	int GetSkillGauge()const { return m_comboInfo.SkillGauge; }//スキルゲージの取得
 	int GetUltGauge()const { return m_comboInfo.UltGauge; }//必殺技ゲージの取得
+	int GetMaxGauge()const { return kMaxGaugeValue; }//スキル・必殺技ゲージの最大値
+	int GetMaxHp()const;//最大HP
 	//血殺(必殺技ゲージ)を最大にする//ラストヒットイベント演出用
 	void MaxUltGauge() { m_comboInfo.UltGauge = kMaxGaugeValue; }
 
@@ -251,6 +254,10 @@ public:
 	void SetIsPartBrokenKilling(bool value) { m_isPartBrokenKilling = value; }
 	bool GetIsPartBrokenKilling()const { return m_isPartBrokenKilling; }
 
+	//攻撃の上昇の倍率//ボス戦で上げる
+	void SetAttackRiseScale(float scale) { m_attackRiseScale = scale; }
+	float GetAttackRiseScale()const { return m_attackRiseScale; }
+
 	//ブレイクの通知
 	void RequestGuardBreakChance(std::shared_ptr<EnemyBase> target) { m_guardBreakChanceTarget = target; }
 	//ボスのパーツを切り落とした通知//切り上げの後にPlayerStateBossPartThrowへ
@@ -291,7 +298,7 @@ private:
 	static MATRIX GetRotationOnly(const MATRIX& mat);//行列から回転だけを取り出す(拡大縮小と平行移動を除く)
 	static MATRIX GetFrameBaseModelMatrix(int modelHandle, int frameIndex);//アニメーションが付いていない初期姿勢での、フレームのモデル空間の行列
 	void ApplyPos()override;//座標の適用//Playerクラスでは、座標に加えて、首のボーンの回転も適用する
-	void ApplyPosWithAttackModel();//アタックモデルにも適用
+	void UpdateRotAngle();//移動の向きへ回す
 
 	bool CanSkillAttack(bool changeGauge = true);//スキル攻撃ができるかどうか//trueならゲージを減らす
 	bool CanUltAttack();//必殺技攻撃ができるかどうか//trueならゲージを減らす
@@ -335,11 +342,11 @@ private:
 	int m_headFrame = -1;//頭のボーンのフレーム番号(通常のモデル)//見つからなければ-1で頭を向けない
 	int m_bloodWingPlayingHandle = -1;//必殺技状態の翼エフェクト(再生中)のハンドル//再生していなければ-1
 	int m_bloodWingFrame = -1;//翼の付け根にする背中(肩甲骨の高さ)のボーン//通常のモデル用
-	int m_bloodWingAttackFrame = -1;//同じボーンの攻撃のモデル用
 	std::shared_ptr<PlayerWeapon> m_weapon;//武器
 
-	int m_attackModelHandle = -1;//攻撃のモデルのハンドル
 	int m_whiteHandle;
+
+	CharacterLook m_look;//法線マップ・遮蔽・光沢つきで描く(CharacterLookPS.hlsl)
 
 
 	//エフェクトマネージャー作るからいったん表示させる
@@ -353,10 +360,7 @@ private:
 
 	const float kPlayerRockOnRange = 300.0f;//ロックオンする範囲//この範囲内に敵がいたらロックオンする
 
-	const float kJustAvoidRadius = 500.0f;//ジャスト回避の範囲
-
 	const int kMaxGaugeValue = 100;//スキル・必殺技ゲージの最大値
-	const int kInitialHp = 100;//プレイヤーの初期HP
 	const int kSkillAttackGaugeCost = 20;//スキル攻撃を行う際に消費するスキルゲージ量
 
 	std::weak_ptr<CameraManager> m_cameraManager;//カメラマネージャ-の弱参照
@@ -373,6 +377,7 @@ private:
 	//部位破壊したターゲット//サーチはロックオンマネージャーに任せてる
 	std::weak_ptr<EnemyBase> m_partBrokenTarget;
 	bool m_isPartBrokenKilling = false;//確殺演出中かどうか//trueの間はロックオンマネージャーが確殺対象を更新しない
+	float m_attackRiseScale = 1.0f;//攻撃の上昇の倍率
 	std::weak_ptr<EnemyBase> m_guardBreakChanceTarget;//ブレイクした敵
 	std::weak_ptr<EnemyBase> m_bossPartThrowTarget;//パーツを切り落としたボス
 

@@ -3,6 +3,7 @@
 #include "WallZone/WallZone.h"
 #include "Main/System.h"
 #include "StageInfo.h"
+#include "StageLights.h"
 #include <memory>
 #include <vector>
 
@@ -21,6 +22,8 @@ public:
 	void OnCollision(Collider& other)override;
 	int GetStageModelHandle()const { return m_stageModelHandle;}
 	int GetStageViewHandle()const { return m_stageViewHandle; }//[BloodKillFog]
+	/// <summary>ステージの明かり(プレイヤーに近いものを点ける)</summary>
+	StageLights& GetLights() { return m_lights; }
 
 	//壁ゾーン(WallKickZone/WallRunZone)----------------------------------------------
 	/// <summary>指定したステージ番号の壁ゾーンCSVを読み込み、今あるゾーンと入れ替える</summary>
@@ -61,7 +64,20 @@ private:
 	//列車ステージのトンネル(見た目だけ。列車の進む向きと逆に流し続ける)
 	int m_tunnelHandle = -1;
 	float m_tunnelScroll = 0.0f;//流した距離(トンネル1本の長さで折り返す)
+	bool m_useNightFog = false;//遠くを夜の色にする(StageInfo::useNightFog)
+	StageLights m_lights;
 	void DrawTunnel()const;
+
+	//画面に映らないメッシュは描かない(MV1DrawModel は画面の外のメッシュも全部描くため)
+	struct MeshBox
+	{
+		VECTOR min;
+		VECTOR max;
+	};
+	std::vector<MeshBox> m_meshBoxes;//メッシュごとの箱(ワールド座標。添え字はメッシュの番号)
+	/// <summary>見た目のモデルを置いた後に1回呼ぶ(ステージは動かないので箱は作り直さない)</summary>
+	void BuildMeshBoxes();
+	void CullMeshes()const;
 
 
 	/// <summary>読み込み済みの壁ゾーンを全て破棄する(CollisionManagerからも解除する)</summary>
