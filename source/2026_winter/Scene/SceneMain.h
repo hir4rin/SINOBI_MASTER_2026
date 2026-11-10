@@ -3,7 +3,7 @@
 #include <memory>
 #include "Scene/Scene.h"
 #include "Stage/StageInfo.h"
-#include "Render/BloodKillFog.h"//[BloodKillFog]
+#include "Render/StageColorGrade.h"
 #include "Render/TempTopLight.h"//[TempTopLight]
 
 class Player;
@@ -14,6 +14,7 @@ class PhaseManager;
 class BattleManager;
 class Camera;
 class Stage;
+class SkyBox;
 class WallZoneEditor;
 class PhaseAreaEditor;
 class UIManager;
@@ -60,10 +61,11 @@ private:
 	std::shared_ptr<BattleManager> m_battleManager;
 	std::unique_ptr<Camera> m_camera;//Player::Updateに渡すだけ(実際のカメラはCameraManagerが制御する)
 	std::shared_ptr<Stage> m_stage;
+	std::unique_ptr<SkyBox> m_skyBox;//空(空の画像があるステージだけ)
 	std::unique_ptr<WallZoneEditor> m_wallZoneEditor;//ステージ編集モードで壁ゾーンを設置・編集するImGuiウィンドウ
 	std::unique_ptr<PhaseAreaEditor> m_phaseAreaEditor;//ステージ編集モードでフェーズ進行のエリアを編集するImGuiウィンドウ
 	std::unique_ptr<UIManager> m_uiManager;//このシーンで表示するUIをまとめて管理する
-	BloodKillFog m_bloodKillFog;//[BloodKillFog]血殺中に背景とステージを赤くする(お試し)
+	StageColorGrade m_stageColorGrade;//血殺中に背景とステージの色を変える
 	TempTopLight m_tempTopLight;//[TempTopLight]暗くて見づらいので真上から照らす(一時的)
 
 	bool m_requestScreenshot = false;//次のDrawの最後でスクリーンショットを保存するか

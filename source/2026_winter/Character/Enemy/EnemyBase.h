@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Character/CharacterBase.h"
 enum class AsyncData : int;
+enum class BloodAmount : int;
 #include "Character/Enemy/State/Locomotion/EnemyIdle.h"
 #include "Character/Enemy/State/Locomotion/EnemyChase.h"
 #include "Character/Enemy/State/Defence/EnemyGuard.h"
@@ -264,6 +265,7 @@ public:
 	virtual void OnAssasined();//暗殺確定時
 	virtual void OnAirAssasined();//空中暗殺確定時
 	virtual void OnPartBrokenKilled(PartBrokenPattern pattern);//確殺確定時
+	void PlayFloorBlood(BloodAmount amount);//床に血の跡を残す(血はプレイヤーの反対側へ飛ぶ)
 	bool GetIsExecuted()const { return m_isExecuted; }//確殺・暗殺が始まったかどうか//trueなら確殺・暗殺の対象にしない
 	bool GetIsPlayerFound()const { return m_isPlayerFound; }//プレイヤーを発見したかどうか//trueなら暗殺の対象にしない
 	void SetIsPlayerFound(bool isPlayerFound) { m_isPlayerFound = isPlayerFound; }
@@ -378,7 +380,11 @@ protected:
 	void FinishHitProcess();//Hitの終了処理
 	void PlayBloodSplash(Collider& other);//血しぶきを再生する//otherは当たった攻撃の判定
 	int PlayBlood(AsyncData effect, const Vector3& pos);//posで血を再生する(+Zはプレイヤー→敵の向き)//再生ハンドルを返す
-	void PlayHeadBreakBlood();//首の付け根から血を出す(確殺・暗殺で頭を切ったとき)
+	void PlayHeadBreakBlood(AsyncData effect);//首の付け根から血を出す(確殺・暗殺で頭を切ったとき)
+	void UpdateHeadBloodPos();//再生中の首の血を首の位置へ動かす
+	void PlayPartBreakBlood();//腕の付け根から体の外側へ血を出す(部位破壊したとき)
+	void UpdatePartBloodPos();//再生中の部位破壊の血を腕の付け根へ動かす
+	void UpdateBloodPos(int& handle, int frame);//再生中の血をボーンの位置へ動かす//再生が終わったらhandleを-1にする
 	//確殺、暗殺後のenemyの状態制御
 	void FinisherPerformanceProcess();//確殺、暗殺後のenemyの状態制御
 
@@ -441,6 +447,8 @@ protected:
 
 	//部位破壊したかどうか
 	bool m_isPartBroken = false;
+	int m_headBloodHandle = -1;//再生中の首の血
+	int m_partBloodHandle = -1;//再生中の部位破壊の血
 	//確殺・暗殺が始まったか(処刑済み)//アニメの終わりを待たずに対象から外すためのもの
 	bool m_isExecuted = false;
 

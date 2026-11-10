@@ -941,7 +941,11 @@
   `PlayerStateBossPartThrow` は無敵。途中で抜けても Exit で投げる。
 - `AsyncData::KingmechGatlingModel` を追加。MSBuild(Debug x64)でビルドは通った。**ゲームでの確認はまだ**
   (切れる位置・手に寄る速さ・回り方・投げのタイミング・爆発の位置。ボスのガード率が0なのでブレイクさせるにはステータスの guardRate を上げる)。
-- まだ: 専用カメラ。
+- (11/05)**投げのカメラ** `Camera/CameraState/BossPartThrowCamera.h/.cpp`(`CameraStateName` / `Type` 23、vcxproj/filters に登録)。`PlayerStateBossPartThrow` の Enter で切り替え、Exit で PlayerCamera に戻す(今のカメラがこれのときだけ)。ロックオン中は `SyncLockOnState` で LockOnCamera へ。
+  - 水平角度: Enter で1回だけ決める。`atan2(プレイヤー→敵)` ± 60度(今のカメラに近いほう。判定は `BattleSmoothCamera::DecideRotateSide` と同じものを `DecideAngleH` に持っている。`BattleSmoothCamera` の `kRotateAngle` を変えたらこちらの定数も変えること)。敵が取れなければ今の角度。
+  - 垂直角度: `kAngleV` = π/10 + 5度。位置は PlayerFollowCamera と同じ(`GetCameraFocusPos` + 高さ150、距離350)。スティック・引きずり・Lerp は無し。ブレンドはプレイヤー中心の Slerp 30F(EaseOut 2.0)。
+  - ボス戦の視野角 +20° が消えないように `IsFovOffsetCamera` の対象に入れた。
+  - 投げは約57F、ステート全体は約73Fで、爆発の前に戻り始めることがある。MSBuild(Debug x64)でビルドは通った。**ゲームでの確認はまだ**。
 - (11/05)**ガトリングの補給**: 爆発で失ったあと、攻撃4回(`kGatlingSupplyInterval`)で `Kingmech/State/KingmechGatlingSupply`(vcxproj/filters に登録)へ。ミサイルのターンより優先。
   Phase = Call(Roar 30F)/ Drop / Recover(Idle 60F)。`IsAttackFlowState` に入れたので補給中は怯まない(ダメージは通る)。切り落としと同じくガトリングは `Attached` に戻るので、また切れる。
   - `KingmechGatling` に Phase `Supply`。腕に重なる行列に高さ(`kSupplyHeight` 1500)だけ足して上から落とす(`kSupplyFrame` 30F)。着いたらミサイルの爆発(`kSupplyEffectScale` 8)を出してボスのメッシュを表示。
@@ -1219,6 +1223,63 @@
   - 一時コードでカメラを4方向に回して、消す処理あり・なしの絵を4ステージで比べた: ステージ1・列車・デモは同じ(最大 1/255)。テストステージは消す処理なしでも毎回絵が変わる(動きが毎回同じにならない)ので比べられなかった。
   - GPU(ステージの描画): ステージ1 0.128 → 0.085ms、列車 0.091 → 0.077ms。CPU(Draw:Stage): ステージ1で Release +0.03ms / Debug +0.05ms(768メッシュを調べる分)。
 
+### 2026-11-05 プレイヤーの髪のポリゴンを減らした(`data/Player03.mv1` を入れ替えた)
+- 髪(`SK_CSF_F_HAIR_01`、4.1万三角形)は細長い板207枚。204枚は 横4 × 縦16〜28マスのきれいな格子(残り3枚は同じ板が2枚重なっているので格子にならず、そのまま残した)。
+- このPCに Blender は無く、手元の FBX(`2026_winter_Player_noY.fbx` / `AllAnimationPlayer.fbx`)にも今の髪は入っていないので、**mv1 だけから作り直した**:
+  1. `MV1SaveModelToXFile(h, "x", MV1_SAVETYPE_MESH)` で .x に書き出す(頂点・法線・UV・ウェイトが全部テキストで出る)
+  2. .x の髪の Mesh だけ書き換える: 板ごとに格子の座標を付けて、行・列を間引く(残した頂点は元の位置・法線・UV・ウェイトのまま)
+  3. **同じ名前の Material を1つにまとめる**(DxLib が書き出した .x はメッシュごとに同じ名前の Material があり、そのまま読むと「マテリアルの数が違う」でメモリが壊れて落ちる)
+  4. .x を読み、`MV1SaveModelToMV1File(new, "x", MV1_SAVETYPE_NORMAL, old, TRUE)` でアニメは元の mv1 から持ってきて保存する(マテリアルの色は元の値を名前で写す)
+- 結果(長さ1/2・幅1/2): 髪 41280 → 11328、プレイヤー全体 95049 → 65097 三角形、ファイル 6.5MB → 4.0MB。骨190・メッシュ23・アニメ95(名前と長さ)は同じ。マテリアルだけ 23 → 6(同じ名前がまとまる。`CharacterLook` は名前で見て、`Player.cpp` は全部に回すだけなので影響なし)。
+- GPU(プレイヤーの描画、ステージ1): 約0.094ms → 約0.06ms。ゲームの中で4方向(距離160)と通常のカメラの絵を比べて、見分けられなかった(`kCameraNear` が100なので、これより近くには映らない)。
+  ただし .x を通すと頂点の丸めで全身がごくわずかに変わる(髪を変えない場合で変わるピクセル約2%、ほとんどは 1〜2/255)。
+- 動いている髪: 全アニメ95本 × 4つの時間 × 3方向(1140枚)を元のモデルと比べた(`tools/HairLod/hairanim`)。頭の骨のズレは0。差が32/255を超えるピクセルは平均約600・最大1849(92万ピクセル中)。差の一番大きいポーズも見比べて、広がった髪の形は同じだった。DxLib の標準の描画での比較で、ゲームの CharacterLook では立っているポーズしか見ていない。
+- `data/Player03.mv1` を「長さ1/2・幅1/2」のものに入れ替えた。元のモデルは git の履歴にある。
+- 作り方は `tools/HairLod/README.md`(ツールは全部そこに移した)。
+
+### 2026-11-05 ボスとプレイヤーの押し戻し
+- `FixNextPosition::FixNextPosCC`: 片方が `Faction::Player`、もう片方が `Faction::Boss` なら、プレイヤーが重なりの全部(1.0)を退き、ボスは動かない。それ以外は今まで通り半分ずつ。
+- それまで `Faction::Boss` を使っている判定が1つも無く、ボスも全部 `Enemy` だったので、**ボスの体の判定(`ColRole::None`)だけ `Boss` にした**(`BossEnemyPirateR0` / `R1` / `BossEnemyKingmech`)。やられ判定(`Hit`)・部位・攻撃判定は `Enemy` のまま(攻撃の処理はそちらのタグを見ている)。デバッグ表示の色は敵と同じ灰色。
+- 一時コードでプレイヤーの横に Kingmech と PirateR1 を出して確かめた(どちらも プレイヤー1.0 / ボス0.0)。R0 は同じ変更だが動かしていない。壁とボスに挟まれたときはまだ見ていない。
+
+### 2026-11-05 Kingmech のトドメのムービー(全部自動、約8秒)
+- HPが0になる全部の経路(`OnDamage`・`OnGatlingExploded`)で `BossEnemyKingmech::StartFinisher` へ。`EnemyDie` には普通は行かない(プレイヤーが同時にやられたときだけ)。Kingmech は HP0 の「空中で1残す」「叩きつけ」の分岐も無くした。
+- `Kingmech/State/KingmechFinisher.h/.cpp`: ボスのステートが監督。全部ここの Phase で進める(時間は実フレーム、定数は .cpp 先頭)。
+  Stagger(膝をつく・白く飛ばす) → Supply(ガトリングが落ちてくる) → Cut(飛び上がって切り落とす) → Throw(投げる) → Silence(胸に刺さって止まる) → Slash(血殺の一閃) → Sheath(背を向けて納刀) → Split(上半身がずれる) → Explode(誘爆) → Done。
+  白の間にボスを闘技場の中央(`m_arenaCenter`)、プレイヤーをその前へ移し、残りのミサイルを消してガトリングをリセットする。ボス→プレイヤーの向きを `m_front` にして、カメラの位置はみんなこれからの相対(`Point(front, side, height)`)。
+- `Player/State/Attack/PlayerStateBossFinisher`: 無敵。KingmechFinisher の指示(`Warp` / `MoveTo` / `PlayAnim` / `Finish`)どおりに動く。ボスが消えたら Idle へ。空中でも `Player::ApplyPos` の落下ステートへ行かないようにした。
+- `Camera/CameraState/BossFinisherCamera`: `SetShot`(始まりと終わりの位置・注視点・視野角・長さ)で、実フレームで直線に動かす。
+- 真っ二つ: `Render/Shader/EnemyCutPS.hlsl`(黒いシルエットで面の裏を捨て、切り口のそばを白くする。**hlsl は BOM なしで保存すること**。BOM があるとコンパイルに失敗して起動時に assert)。`ModelShaderManager::SetCutPlane / ClearCutPlane`、定数バッファ b6。`BossEnemyKingmech::DrawFinisherCut` で下半身と上半身の2回描く(黒モードのときだけ効く)。
+- ガトリング: `ThrowAndStick` で爆発せず刺さる。`Phase::Stuck`(モデルの-Xが銃口)。
+- `FinisherUI`(黒帯・白いフラッシュ・斬撃の線)、`BattleManager::GetFinisherScreen()`。ムービー中は HUD を消し、Sheath から血殺の文字も消す(シルエットが隠れるため)。
+- 終わり: `m_isLifeZero` が立って全滅扱い → 遷移表どおりリザルト。リザルトへ行くならカメラ・黒帯はそのまま暗転、先のフェーズがあれば次のフレームで元に戻す。ムービー中は `SetIsEventPlaying(true)` で入力とポーズを止める。
+- 確認: F2 の Enemy Debug の「Finisher」ボタンですぐ流せる。
+- 一時コードでボスを自動で出して15Fごとに撮影し、デモ・ステージ1で最後まで流れること、デモで遷移表の流れから暗転まで進むことを確認した。Debug・Release のビルドは通った。**ゲームで実際に倒して見る確認はまだ**(特に血殺の一撃でHP0にしたとき・ガトリングが無いとき)。
+- **ステージ1では血殺の赤いフォグが建物にかからない**(前からの `LitModelPS` のフォグの問題。空だけ赤い)。
+- 仮のもの: 音なし、納刀は専用モーションが無いので `AttackPose` → `Idle`、爆発は既存のエフェクトの組み合わせ。ミサイル渡りは入れていない。
+
+### 2026-11-05 Update が 1.0 → 2.0 になる瞬間のラグの原因
+- ユーザーのプレイのログ(VS から Debug、約230秒)を見た。1フレームが2回分(25ms以上)になったのは9フレームだけ。原因は次の2つで、**mv1 の数ではない**(Draw:Stage/Enemy/Player は平均 0.15/0.09/0.05ms)。
+- **原因1: Debug のエフェクト**。`Draw:Effect` が10〜12.7msのフレームで33msになっていた(frame 6514, 6871, 6876, 6877)。`UpdateEffekseer3D` は `Update` の区切りに入っている(`EffectManager::Update`)ので、エフェクトが多いと `Update` も一緒に増える。
+  - 一時コードで血しぶきを繰り返し再生して測った(ステージ1)。Draw:Effect の平均/最大(ms)は 8フレームごとの SplashA: Debug 5.1/8.6・Release 0.31/1.1、SplashC: 11.5/17.4・0.66/1.1、SplashWhite: 15.3/22.1・0.85/1.6。BloodWing 1つ: 0.82/1.5・0.09/0.4。
+  - **Debug は Release の約10倍遅い**(Effekseer の `_d` のライブラリのため)。Update も Debug は平均1.4〜3.9ms、Release は0.15〜0.42ms。ラグの確認は Release で行う。
+  - 1回の粒の数: SplashA/B 251、SplashC 414、SplashWhite 561。8フレームごとに重ねると 855〜2427。
+- **原因2(たぶん): ログの書き込み**。frame 1679, 1739, 1799 で、1フレームの処理は普通なのに間隔だけ 37〜159ms になった。全部 `WriteStats`(60フレームごとに FrameStats.txt を開いて閉じる)の直後。frame 1741 の88msも、記録にない74msが `SetRefreshIndex` の書き込みの所。`FrameProfiler` は書くたびに fopen/fclose していた。
+  - **直した**: ログはメモリ(`m_logBuffers`)にためて、別のスレッド(`FrameProfiler::LogThread`)が1秒に1回ファイルへ書く。優先度は低め。終了時に `FrameProfiler::Terminate` が残りを書く(`Application::Terminate` の最初)。ログの形は前と同じ。
+  - ファイルの書き込みに毎回0.4秒かかるようにしても(一時コード)、Debug のフレームの間隔は最大21.5msで止まらなかった。
+  - VS の「デバッグの停止」で強制終了すると、最後の1秒ほどのログは残らない。
+  - 直した後の確認の1回目(ビルドの直後)に 557ms の止まりが1回出たが、続けて4回動かしても出なかった(最大33ms)。原因は分かっていない。
+- ステージとの当たり判定(`MV1CollCheck_Capsule` の第2引数 -1)は問題ではない。-1 は全フレームの意味で、`MV1SetupCollInfo` の格子(32×8×32)で近くのポリゴンだけ調べる。当たり判定のモデルは ステージ1 3204三角形・列車 756三角形。カプセル1回 約1.3µs。
+  - 一時コードで測った(ステージ1、敵が動いていない状態): 42回/フレームで約0.1ms。`Upd:Collision` の Debug 0.59ms のうち2割弱で、残りは全組み合わせの判定(コライダー44個 → 946組 × 3回のループ)。プレイ中の Upd:Collision は平均0.75ms、最大2.8ms(Debug)。
+
+### 2026-11-05 カメラのデバッグ機能を今のコードに合わせた
+- **Camera Check**(`CameraManager::DrawDebugWindow`): FOV Offset のスイッチ、ブレンドの進み(`CameraStateBase::IsBlending` を public にし、`GetBlendElapsed / GetBlendLength` を追加)、ロック・攻撃の対象の有無、State の位置と描画の位置(`m_renderPos`)、注視点、角度、補正前後の距離、FOV の内訳(state + offset + punch)、シェイクの残りを出す。`GetCameraTypeName` に抜けていた Type を足した。
+- **フォトモード**: 開始位置を `GetPos()` から `m_renderPos`(ステージとの補正込み)にし、開始時の視野角を `m_renderFov` にした(`imguiApp::SetOverrideCameraFov`)。前はボス戦の +20° などが消えて `m_camFovDeg` に飛んでいた。ステージ編集も同じ。
+- **Camera Debug**: Angle H の向きをゲームの `m_angleH`(カメラ→注視点)に合わせた(左右が逆だった)。**前の値とは符号が逆になる**。Sync From Current で視野角も写す。
+- **Camera Animator**: `CameraKeyframe::fov`(ラジアン)を追加。Save Camera で今の視野角を保存し、Keyframe Editor で編集できる。再生は `UpdateBlend` と同じ計算(`fovEasingMode / fovEasingPower / fovDuration` も編集できる)で、区間の長さは位置と視野角の長いほう。前は再生中ずっと60°だった。
+- **Camera Keyframe Editor**: isChase の区間は追いつくまで次へ進まない(`UpdateBlend` / `IsBlending` と同じ。`kChaseArriveDistance` を CameraStateBase.h へ移した)。EaseOutBack / EaseOutExpo のときは Power を編集できない。Slerp に「Pivot = Player」ボタン(ゲームのカメラの Slerp はプレイヤー中心)。最後のキーフレームのブレンド設定は未使用と表示する。
+- MSBuild(Debug x64)はゲーム起動中だったので、出力先を scratchpad にしてビルド・リンクまで確認した。**プロジェクトの exe はまだ前のまま・ゲームでの確認もまだ**。
+
 ### 2026-11-04 プレイヤーのHUD(HP・スキル・必殺技ゲージ)
 - **詳しくは `../進捗/note_プレイヤーのHUD.md`**(図あり)。
 - `data/UI/` をフォルダ分けしたので、KessatsuUI の画像を `data/UI/bloodUI/〜` に変えた。
@@ -1241,6 +1302,221 @@
   frame9(枠 48px・角16) / select_base / halftone(8px) / glow(加算用、黒背景) / bracket / line_fade / grid(64px) / rain(256px) / vignette(乗算用)。ボタンは `data/UI/button/A.png`。
 - `StageSelectScene`: 前の文字だけの表示をやめて `m_menu` で描く。`ApplyCursor()` で右のパネルにステージ名・説明。
 - Debug(x64)でビルドは通った。起動して画面を撮り、表示・カーソル移動・折り返しを確認した。シェーダーはまだ使っていない(背景のぼかし・グリッチなどは後で)。
+
+### 2026-11-06 ステージ1の仕上げ(隙間・色・見えない面・敵の数)
+- **詳しくは `../tools/CyberStage/ステージ1_設計.md` の「仕上げ」**。Unity は閉じていたので batchmode で保存済みのシーンに足して消した(`Assets/Editor/CyberStagePolish.cs`。`ApplyAll` は適用済みなので2回呼ばない。前のシーンは `ninja_motion/Backup/CyberStage1Scene_before_1106.unity`)。
+- 隙間: 当たり判定から歩ける所を求め、壁の奥に見た目が無い85か所を建物の箱でふさいだ。縦穴の上の足場の外と妖魔の部屋の扉の左右は何も無く落ちたので見えない壁を足した。壁ぎわに車・コンテナなど31個。
+- 敵: 3 → 4 → 5 → 6 → 7 → 8 → ボス(`Enemies005.csv`)。足元に床があり物に埋まっていないことは Unity で確認した。
+- 色: 区画ごとの色(`CyberStageTool.Zones`)、`convert.exe night`(拡散0.4・環境0.5)で面の向きの陰影を出した。床は濃淡を強めた。
+- 見えない面: 通り道から映らない三角形を書き出さない(`CyberStageVisibility`)。見た目 約51万 → 約28万三角形、頂点 約88万 → 約48万、mv1 4.4MB → 2.7MB、メッシュ 768 → 500。遠くの超高層ビルは夜空の絵に置き換えて消した。テクスチャは小物を512に縮め、66MB → 32MB。Release のピークは 1.37GB(`-bench=900 -stage=3`。11/04 の記録はステージ内 1.57GB で、同じ測り方の比較ではない)。
+  - **シーンを直したら Tools > Cyber Stage > 3. Bake Hidden Faces And Export**。
+  - ランダムな300視点で面を省かない mv1 と比べた: 違うピクセルは全体の0.29%、一番多い視点で1.4%(細い隙間の向こうの建物の一部)。
+- ゲーム側:
+  - `SkyBox` を使えるようにした(`Init(フォルダ)`、`Draw` で今のカメラを囲む)。`StageInfo::skyDir`、`SceneMain::m_skyBox`。血殺の背景は空の上に塗る。
+  - **`LitModelPS` のフォグが効くようにした**(`MV1VertexShader.hlsl` で `g_Common.Fog.Mode == 3` なら計算)。前は `Fog.x` がいつも1で、夜のフォグも血殺の赤いフォグも建物にかかっていなかった。
+    **`SetFogEnable(FALSE)` だけでは `Fog.Mode` が3のまま残る**ので、切る前に `SetFogStartEnd` で距離を遠くへ送る(`Stage::Draw`、`BloodKillFog::EndStage`)。新しくフォグを使うときも同じにする。
+- 確認: Debug・Release ともビルドは通った。Release で `-bench=900 -stage=3` は最後まで動いた。絵はゲームと同じライト・明かり・フォグの preview(scratchpad)で通り道の54か所を確認した。**実際に遊んでの確認はまだ**(敵8体の谷の戦いやすさ、小物に敵が引っかからないか、血殺の赤いフォグの見え方)。
+
+### 2026-11-06 暗殺対象のUI(AssasinTargetUI)
+- `UI/AssasinTargetUI.h/.cpp`(UIBase 継承、Front)。`UIManager::InGameInit` で登録。対象の頭の上に、丸いアイコン・Yボタン・右へ伸びる赤い帯・「暗殺」の文字を出す。値は .cpp 先頭。
+- 出す条件(`FindTarget`): `Player::GetAssasinTarget()` がいて、`Player::CanInputAssasinState()`(今回追加。Idle / Move / FastRun / Jump / Fall)が true、血殺・イベント中でない。**暗殺に入れるステートを増やしたら `CanInputAssasinState` も直すこと**。
+- 位置は Draw の中で敵の足元(`GetRigidBody().GetPos()`)+ `kEnemyHeight`(200)を `ConvWorldPosToScreenPos`。敵の種類で背の高さが違うと合わないので、そのときは敵ごとに高さを持たせる。カメラの後ろ(z が 0〜1 の外)は描かない。対象が変わったらアニメをやり直す。普通に対象がいなくなったときはすぐ消す。
+- 暗殺が始まったとき(`Player::GetIsAssasinating()` が true)は約0.3秒のリアクションをしてから消す。アイコンが大きくなり、白い円を重ねて光らせ、帯が左へ縮み、全体がフェードする。カメラが切り替わるので、リアクション中は画面の位置を止める(`m_drawX/Y`)。値は .cpp 先頭の `kExit〜`。
+- 全体の大きさは `kUIScale`(0.8)を変える。画像・帯・文字・`kIconLift` にまとめて効く。
+- 素材: `data/UI/Assasin/icon.png`(`tools/AssasinUIGen/MakeAssasinIcon.ps1` で作る。丸の中心は .cpp の `kIconCenterX/Y` と合わせる)、`button/Y.png`、帯は `Menu/select_base.png` を赤くして左右反転。アイコンとボタンは乗算済みアルファ。
+- `PartBrokenKillUI`(UIBase 継承、Front、`UIManager::InGameInit` で登録)は確殺対象の体の中心に赤い刃の×とYボタンを出す。全体の大きさは `kUIScale`(0.7)、位置は足元+ `kEnemyCenterHeight`(100)。値は .cpp 先頭。
+- 確殺UIを出す条件(`FindTarget`): `Player::GetPartBrokenTarget()` がいて、`Player::CanInputPartBrokenState()`(今回追加。Idle / Move / FastRun / Attack / AttackLanding / SkillAttack)が true、血殺・イベント中でない。**確殺に入れるステートを増やしたら `CanInputPartBrokenState` も直すこと**。攻撃中はキャンセルできるフレーム前でも出る(途中で消えてチラつかないように)。
+- Idle / Move / FastRun は暗殺の入力が確殺より先なので、暗殺対象がいるときは確殺UIを出さない。
+- 確殺が始まったら(`GetIsPartBrokenKilling()`)約0.3秒のリアクション。刃が白くなり長く細くなって弾け、真ん中の丸は光ってフェードする。画面の位置は止める。値は `kExit〜`。
+- 素材: `data/UI/PartBrokenKill/blade.png`(`tools/AssasinUIGen/MakePartBrokenBlade.ps1` で作る白一色の刃。赤は `SetDrawBright` で付ける。1枚で赤い刃・明滅・白い芯・白くなる動きを描く)。
+- Debug(x64)でビルドは通った。一時コードでステージ1のプレイヤーの前に未発見の敵を出して、頭の上に出ることと、地上暗殺に入ったときのリアクション、確殺UIの出る動きと確殺に入ったときのリアクションを画面で確認した(一時コードは消した)。**実際に操作しての確認はまだ**(攻撃中の表示、対象の切り替わり、空中暗殺のリアクション、確殺の別パターン、壁の向こうの敵に出ないか)。
+
+### 2026-11-07 UIのUpdateの引数をなくした
+- `UIBase::Update(Input& input)` → `Update()`。`UIManager` と各UIも同じ。Input はシングルトンなので、UIで入力が要るときは Player と同じく `Input::GetInstance()` で取る(今は入力を使っているUIはない)。
+- `UI/UIBase.h` / `UIBase.cpp` / `FontManager` は Shift-JIS(ほかのUIは UTF-8)。スクリプトで書き換えるときは文字コードに注意。
+
+### 2026-11-07 ガードブレイクのチャンスUI(GuardBreakChanceUI)
+- `UI/GuardBreakChanceUI.h/.cpp` を追加(vcxproj/filters、`UIManager::InGameInit` に登録)。チャンス中に敵の体の中心(足元+100)へ出す。
+- デザイン: グラデーションの青い×の刃と周りの光、後ろの丸い光、深い青の丸の中に残り時間のリング、つやのある青い丸に白いY、右へ透明になる青い帯に「ガードブレイク」(游明朝、紺のふち)。形は確殺と同じ×なので、見分けるのは色・リング・帯。
+- 素材は `data/UI/GuardBreak/`(blade / blade_glow / glow / disc / button / band の6枚)。作り直しは `tools/AssasinUIGen/MakeGuardBreakUI.ps1`。色は画像に入っている(べた塗りに見えないようグラデーションにした)。白く光らせるときだけ確殺の白い `blade.png` を重ねる。
+- 敵が白いので、白は文字とYだけにして青を主にしている。リングを丸に乗せる・帯の文字の範囲は透かさない、は白い敵の上で読めるようにするため。
+- 残り時間は `PlayerStateGuardBreakChance::GetRemainRate()`。残り3割で刃が明るい青に点滅。リングは画像なしで `DrawLineAA` をつないで描く(`DrawRing`)。
+- Yを押した(`Player::IsGuardBreakAttacking()`)ら18Fのリアクション: 白くなり、刃が長く細くなって弾け、波紋が広がり、帯は右へ流れる。それ以外で終わったら20Fで縮みながら消える。消えている間は画面の位置を止める。
+- Debug(x64)でビルドは通った。**ゲームでの確認はまだ**(大きさ、文字が帯に収まるか、帯の向き、明るいステージでの見やすさ)。
+
+### 2026-11-07 画面に出してからモニターの更新を待つようにした(描画が遅れて感じる件)
+- ログでは描画は軽く(Release・待ちなしのステージ1で1フレーム平均0.35ms)、遅れて感じるのは画面に出すまでの待ちと考えた。
+- `Application::Run` の順番を「更新 → 描画 → 待つ → ScreenFlip」から「更新 → 描画 → ScreenFlip → 待つ」に変更。区切りの順番も Flip → Wait になった。
+- Release の `-bench=1800 -stage=3` で確認: 間隔 平均16.68ms、更新の取りこぼし0回、フレームの始まりから画面に出すまで 約15ms → 約1ms。20ms超えは2回(次のフレームが短くなる前からあるずれ)。
+- **遅れの短縮はコードからの見込みで、モニターに映るまでは測っていない。実際に遊んでの確認はまだ**。変わらなければカメラの追従(`PlayerFollowCamera.cpp` の `kCameraLerpFactor` 0.1)を見る。
+
+### 2026-11-07 ステージ1の道を曲げた(一本道でランゲームのようだった件)
+- **詳しくは `../tools/CyberStage/ステージ1_設計.md` の「曲げた道」**。区画の境目7か所で90度に曲げた。区画の表の Z は曲げる前の座標。
+- ツールは `ninja_motion/Assets/Editor/CyberStageTurns.cs`。**`Apply` は適用済みなので2回呼ばない**。前のシーンは `ninja_motion/Backup/CyberStage1Scene_before_turns_1107.unity`、見えない面のデータの控えは `VisibilityBake_before_turns_1107.bytes`、`CyberStagePolish.cs` の控えは `CyberStagePolish_before_turns.cs.txt`。
+- 書き出した物: `CyberStage.mv1` / `CyberStageCol.mv1` / `Enemies005.csv` / `WallZones/Stage005.csv` / `PhaseAreas/Stage005.csv` / `Lights/Stage005.csv`。ゲームのコードと `PhaseStage005.csv` は変えていない(エリア名が同じ)。
+- 見た目 約31万三角形(前は約28万)、当たり判定 4404三角形。
+- 確認: Unity で7か所の角の床と中心線の通り抜け、Release の `-bench=480 -stage=3` で読み込みと正常終了。**実際に操作しての確認はまだ**。
+- (追記)**隙間埋めの壁の部品の向きを直した**: 11/06 の `FillRun` は部品が90度ずれて壁の箱に埋まり、建物がのっぺり見えていた(部品の表はローカルの+X)。`FillRun` の向きの計算を直し、シーンは `CyberStageTurns.FixGapModules` で `Library/CyberStageAnalyze/runs.txt` の記録を曲げた後の座標に直して、76個を置き直し8個を作った。**適用済みなので2回呼ばない**(印は `CyberStage/99_GapModulesFixed`)。前のシーンは `ninja_motion/Backup/CyberStage1Scene_before_modules_1107.unity`。見た目は約31万三角形のまま。Unity の絵と Release の `-bench=300 -stage=3` で確認した。
+
+### 2026-11-07 BattleSmoothCamera に入るときに壁を見て回るサイドを決める
+- `BattleSmoothCamera::Enter` で近いほうのサイドを決めたあと、そのサイドのカメラの目標位置が壁に当たり、逆サイドは当たらないときだけ逆サイドへ(`IsWallHit`)。判定は入るときの1回だけ。両方当たるならそのまま。
+- 入ったあとに壁に当たっても反転しない(戦闘中に急に回さないため)。今まで通り `FixStageCollision` で寄るだけ。歩いて PlayerFollowCamera に戻り、また攻撃が当たれば判定し直す。
+- `CameraManager::IsStageHit(start, end)`: 線がステージに当たるか。Camera Check の Stage Collision を切ると当たらない扱い。
+- 当たり判定用のモデル(colModel)に線を引くので、**見えない壁にも反応する**。線の端が少しかするだけでも当たり扱い。
+- 目標位置・注視点の計算を `CalcGoalPos(角度指定)` / `CalcGoalTarget` に切り出した。
+- MSBuild(Debug x64)でビルドは通った。**ゲームでの確認はまだ**。
+
+### 2026-11-07 プレイヤーのきりもみの被弾(PlayerHitKirimomiState)の土台
+- `Character/Player/State/Defence/PlayerHitKirimomiState.h/.cpp` を追加し、vcxproj/filters と Player.h(include/friend)に登録。**まだどこからも入らない**(`Player::OnDamage` などから遷移させる)。
+- `Player01Anim.csv` に key `HitKirimomi` = `Ninja_HitReact_Explosion`(Player03.mv1 の番号42・40F)を追加。Enter でループなしで流すだけ。
+- `Player::OnDamage` で `data.isKirimomi` なら遷移(ユーザーが作成)。吹っ飛びと着地もユーザーが書いた。`m_rb.m_vel` は毎フレーム0になるので、速度は重力の累積から毎フレーム作る(`EnemyHitAir` と同じ)。
+- 直した3点:
+  - **Enter は当たり判定の最中(OnDamage の中)に呼ばれる**ので、そこで `SetIsFloor(false)` しても効かず、次のフレームに `IsLeftFloor` で `PlayerStateFall` に移っていた → 上昇中は Update で `SetIsFloor(false)`。
+  - `knockBackPower.x` は向きではなく水平の強さ → `Player::CalcKnockBackDir(other)`(攻撃の持ち主→プレイヤーの水平の向き)に掛ける。ミサイルをきりもみにするなら、持ち主(ボス)ではなく判定の位置を基準にする分岐が要る。
+  - 着地したら速度を入れない(XZ が残って滑っていた)。
+- 敵と同じく `HitInfo` で受ける。`OnDamage` で `knockBackVel` を作って渡し、ステートは `m_info.knockBackVel + 重力` で飛ぶだけ。敵の吸着(toTarget)は足さない。`duration` は使わない(着地で終わる)。
+- 中は Phase で進める: `Fly`(吹っ飛び)→ 着地で `Down`(爆発アニメが38Fまで進むのを待つ)→ `GetUp`(`Get_Up_Combat`)→ Idle/Move。38Fで止めるのは、それより後のアニメが立ち姿に戻るため(`kDownEndFrame`)。
+  - 今の値だと着地は約40F、倒れきるのは約76Fでずれる。受け身は未実装(`Down` の間だけ回避で `GetUp` を飛ばす案)。
+- `knockBackY` が0以下だと最初から落下中の扱いで、地上ではその場に止まる。
+- MSBuild(Debug x64)でビルドは通った。ゲームでの確認はまだ。
+
+### 2026-11-07 プレイヤーに起き上がりのアニメを追加(Get_Up_Combat)
+- `data/Player03.mv1` のアニメを 95 → 96 本にした。`Player01Anim.csv` に key `GetUp` = `Get_Up_Combat`(65F)を追加。`PlayerHitKirimomiState` の `GetUp` で使う。
+- 仰向けから始まるので、`Ninja_HitReact_Explosion` の倒れた姿勢(32F以降)からつながる。向きも合っている。
+- `Ninja_HitReact_Explosion` は38Fまで仰向けで、39.9Fでは立ち姿に戻っている。最後まで流すと一瞬立って見えるかもしれないので、`ChangeAnim` の endFrame を38にするとよい。
+- 手順は `../tools/PlayerAnim/README.md`。FBX からはアニメだけを取り、メッシュ(髪の削減・マテリアル)は今の Player03.mv1 のまま保存した。
+  - Unity: `TruePlayer.controller` にクリップを追加、`SK_VEX_01` を Tools > Skinned Anim FBX Exporter で書き出し(FPS30、XZ固定 `root,pelvis`、**Y固定はOFF**)。
+  - FBX は scratchpad に出したので残っていない(この手順で作り直せる)。
+- 確認: 髪込みの三角形 65097・メッシュ23・マテリアル6・テクスチャ6は同じ。既存95本の骨の位置を比べて、94本は差 0.1 未満、`Run_Combat_to_Run` だけ最大 3.02(`Player01Anim.csv` では使っていない)。Debug の `-bench=180 -stage=3` で読み込んで正常終了。ゲームで起き上がりを流す確認はまだ。
+
+### 2026-11-08 プレイヤーの空中の被弾(PlayerHitAirState)
+- `Character/Player/State/Defence/PlayerHitAirState.h/.cpp`(vcxproj/filters、Player.h の include/friend に登録)。中身は `PlayerHitKirimomiState` のコピー(Fly → Down → GetUp、アニメも同じ `HitKirimomi` → `GetUp`)。
+- 違い: **吹き飛ぶ力はプレイヤー側の定数**(`Player.cpp` 先頭の `kAirHitKnockBackXZ` 3 / `kAirHitKnockBackY` 2。重力の倍率はステートの .cpp 先頭の `kGravityRate` 1。どれも仮)。攻撃データの knockBackPower は使わない。
+  キリモミと同じく `HitInfo` で受け取る。`OnDamage` で `CalcKnockBackDir(other) × XZ + (0, Y, 0)` を `knockBackVel` に入れて渡す。
+- Enter で `m_targetVec` を吹っ飛ぶ向きの逆(攻撃してきた側)にする(水平だけ。0なら変えない)。`PlayerHitKirimomiState` の Enter にも同じ処理を入れた。
+- 入口: `Player::OnDamage` のキリモミの分岐の後で `!WasFloor()` なら遷移(キリモミが優先。スキル・必殺技中はその前で return)。前は空中の被弾も `PlayerStateHit` で、アニメが終わるまで空中で止まっていた。
+- 無敵時間はキリモミと同じく入れていない(`PlayerStateHit` は Exit で入れる)。
+- MSBuild(Debug x64)でビルドは通った。**ゲームでの確認はまだ**(力の大きさ、着地してから倒れて起き上がるのが重くないか)。
+
+### 2026-11-08 F2「Frame Time」に描画の遅れ(Lag)
+- FPS の下に `Lag` のバー(`FrameProfiler::DrawLatencyBar`)。入力(フレームの始まり)から画面に出るまでの**目安**。バーの端 = 3フレーム分、目盛りは1フレームごと。
+  - 内訳: `Flip`(フレームの始まり → ScreenFlip が返る) / `VBlank`(→ 次のモニターの更新) / `GPU late`(更新を待った後も GPU が終わっていないフレーム数 × 1回分。あれば数字が赤) / `DWM`(ウィンドウモードは Windows が次の更新で合成するので1回分を足す。測ってはいない)。
+  - 下の行に60フレームごとの平均・最大。`Log/FrameStats.txt` にも `LATENCY` で出る。
+- GPU の終わりは D3D11 のイベントクエリ(`MarkGpuFrameEnd` を ScreenFlip の直前、`UpdateLatency` を Wait の後で待たずに調べる。4個を使い回す)。
+- モニターの更新を待たない待ち方(`-pace=busy` など)は、DWM の最後の更新の時刻(`DwmGetCompositionTimingInfo` の qpcVBlank)から次の更新を数える。
+- 測った値(Debug・ステージ1のスタート地点・立っているだけ): 既定(VBlank)で平均約33.6ms(2.0フレーム。Flip 2.7 + VBlank 14 + DWM 16.7)。`-pace=busy` は平均約21〜22ms・最大約36ms(フレームの始まりが更新とずれるので毎回変わる)。
+- 画面に実際に映った時刻は測れていない(DxLib からスワップチェーンが取れないため)。DWM の1回分は仮定。
+
+### 2026-11-08 F2「Frame Time」に速さ・タイムスケールの記録・一番遅いフレーム
+- 症状(ユーザー): ときどきカクつく、プレイヤーや敵がタイムスケールがかかったように重くなる(カメラではない)。
+  このゲームは1フレームに1回ぶん動く作り(経過時間で進めない)なので、**フレームが落ちると画面上はスローに見える**。タイムスケールのせいかフレーム落ちかを見分けるために足した。
+- `Speed` の欄(グラフの下):
+  - グラフ: 水色 = 画面で見た速さ(タイムスケール × 1回分 ÷ 実際の間隔)、黄色 = タイムスケール(フレームの始まりの値)。白い線が 1.0 と 0.5。3秒分。
+    水色だけ下がる → フレーム落ち。黄色も下がる → タイムスケール。`Drop` はフレームの間隔が1回分の1.5倍以上だった回数。
+  - タイムスケールの変更の新しい8件(フレーム番号・前 → 後・変えたファイルと行)。全部は `Log/TimeScale.txt`。
+    `System::SetTimeScale` / `SetTimeScaleForFrames` に `std::source_location` の引数(省略可)を足し、値が変わったときだけ `FrameProfiler::RecordTimeScale` に記録する。フレーム数で戻るときは `System.cpp` の行が出る。
+  - プレイヤーの `ownTimeScale`(ジャスト回避など)は入っていない。
+- `Worst frame`: 直近3秒で一番フレームの間隔が長かったフレームの内訳を残す(待ち以外で一番長い区切りを赤)。前の「今のフレームの内訳」は `Last frame`(閉じてある)。
+- **見つかった問題**: `SceneMain.cpp` の W キーのデバッグ(押している間、毎フレーム 0.1 ↔ 1.0 を切り替える)。W はキーボードの `LB` でもある。
+  押した長さによっては**0.1 のまま止まる**(ベンチで W を0.4秒押したら 0.1 で残った)。押している間もガタガタのスローになる。
+- Debug(x64)でビルドは通った。ベンチで W を押して、グラフと変更の記録が出ることを確認した。`Worst frame` の表示は画面ではまだ見ていない。
+- (追記)ユーザーのプレイのログ(約11分): 遊んでいる間のフレーム落ちは3回(約21〜24ms、処理は軽く Wait から戻るのが遅れただけ)。Flip は平均0.73ms・3ms超えの区間あり(フレーム落ちの原因ではない)。
+  タイムスケールの変更は確殺(`PlayerStatePartBrokenKill.cpp:258/280`、毎フレーム)・空中暗殺(0.7)・ガードブレイクのチャンス(0.2)だけで、戻し忘れは無かった。
+
+### 2026-11-08 F2「Frame Time」だけゲームのウィンドウの外に出す
+- `Frame Time` は最初からゲームのウィンドウの右(はみ出すならモニターの中に寄せる)に別ウィンドウで出る(`FrameProfiler::SetupWindowPlacement`)。大きさ 560×900、ほかのウィンドウとのドッキングは外す。
+  チェック「Outside game window (may stutter)」を切ると中に戻る(ゲームの画面の左上)。
+- ImGui の決まりで外に出す機能(ViewportsEnable)は最初の NewFrame より前に入れる必要がある(後から入れると assert)ので、`imguiApp::Init` で入れるようにした。
+- **ほかのウィンドウは中に収める**(`imguiApp::KeepWindowsInsideGame`、NewFrame の直後に毎フレーム)。外に出す機能が入っていると、ゲームのウィンドウからはみ出したウィンドウは ImGui が自動で外に出す(Camera Check / Stage Lights は高さ680で下にはみ出していた)。
+  `Frame Time` とドラッグ中のもの以外は、はみ出さない位置・大きさに直す(ドッキングのまとまりはノードごと)。**ほかのウィンドウをドラッグで外に出しても、離すと中に戻る**。
+- 外のウィンドウは ScreenFlip の**後**に描く(`imguiApp::RenderPlatformWindows`、区切り `ImGui(out)`)。前に描くとゲームの ScreenFlip が平均0.3 → 3.7ms(最大10.8)に延びた。後にすると Flip 平均0.57ms、`ImGui(out)` 平均2.8ms・最大13.6ms(更新を待つ間の空き時間に入る)。
+- Debug のベンチ(ステージ1・30秒)で、外に出してもフレーム落ちは0回、Lag は約33.6msのまま。ゲームが重い場面で `ImGui(out)` の最大13.6msが乗ると1フレームを超えるかもしれない(そのときは外に出すのを切って比べる)。
+
+### 2026-11-08 敵を倒したときに床へ血の跡を残す(BloodDecalManager)
+- `Render/BloodDecalManager.h/.cpp`(vcxproj/filters に登録)。`AttackTokenManager` と同じく `BattleManager` が `shared_ptr` で持ち、`System::GetInstance().GetBattleMgr()->GetBloodDecalMgr().lock()` で取る。`Update` は `BattleManager::Update` の中で呼ぶ。`Init` はステージが必要なので、`SceneMain::Init` で `BattleManager` を作った後に呼ぶ。`Terminate` はステージのモデルを消す前(`~SceneMain` の最初のほう)。床に貼った板ポリを最大256枚、`DrawPolygonIndexed3D` 1回で描く。上限を超えたら古いものから上書き。値は .cpp 先頭。
+- 出す場所: `EnemyBase::PlayFloorBlood(BloodAmount)`。死んだときには出さない。部位破壊(`EnemyBase::OnDamage` の `OnPartBreak` の後)は `Small`、地上の暗殺(`EnemyAssasined` の頭が取れる所)と空中暗殺(`PlayerStateAirAssasin` の Execute の終わり)は `Large`。確殺(`PlayerStatePartBrokenKill` のパターンA・Bの、Execute から End に変わる所)も `Large`。`OnHeadBreak` は確殺と共通なので、その中には書かない。`SceneMain` が `Init` / `Terminate` / `Draw` を呼ぶ。
+- 1回の中身: 足元に血だまり1枚＋プレイヤーの反対側へ飛沫10枚・細かい粒14個(`Small` は大きさ0.45倍・距離0.6倍で飛沫3枚・粒6個)。飛沫は遠いものほど細長い(`Decal::stretch`)。
+- 床の探し方: 当たり判定のモデルで床を見つけ、そのまわり±45で**見た目のモデル**に線を飛ばして高さと法線を取る。ステージ1と列車は見た目の床が当たり判定より高い所があり(敵の周りの最大で約39)、当たり判定の高さに貼ると埋まって見えなかった。`Init` で見た目のモデルに `MV1SetupCollInfo` をする(ステージ1で約11ms)。
+- はみ出し: 四隅の下に見た目の床が±15で無ければ0.7倍にして、3回試してだめなら出さない。飛沫は壁の向こうと下の段には出さない。
+- 描画: `m_stage->Draw()` の直後(`BloodKillFog` の EndStage の前)なので血殺の赤いフォグがかかる。夜のフォグはかからない。ライティングなし、Z書き込みなし。床とのちらつきを防ぐため、頂点を視線に沿ってカメラへ寄せている(画面の位置は変わらない)。
+- 時間: 血だまりは2F後に出て10Fで広がる。飛沫は距離÷75F後に出て3Fで広がる(最大で約7F)。空中のときは床へ落ちる分(高さ÷60F)だけ遅れる。色は鮮やかな赤から150Fで暗い赤へ変わる。出てから1200Fで消える(最後の180Fでフェード)。全部タイムスケールで進む。
+- 画像: `data/Decal/BloodDecal.png`(エフェクトの画像とは分けている。512pxのマスが2x2。上=血だまり、下=飛沫で上向きに飛ぶ。白ベースで色はコードで掛ける)。作り直しは `../tools/BloodDecalGen/MakeBloodDecal.ps1`。
+- 確認: Debug・Release ともビルドは通った。一時コードで敵を出して `PlayFloorBlood` を呼び、ステージ1とデモで `Large` / `Small` の広がり方を画面で確認した。発生の処理は Debug のステージ1で `Large` 約1.1ms・`Small` 約0.6ms。**実際に暗殺・部位破壊しての確認はまだ**(色・量・残る長さ、カメラが動いたときのちらつき、斜面と床の端、空中での出方)。
+- (追記)`BattleManager` の持ち物にしたあとも、一時コードで血を出してステージ1の画面で確認した。Debug・Release のビルドと、Release の全ステージのベンチも通った。
+
+### 2026-11-08 血殺のフォグをやめてステージの色変えにした(StageColorGrade)
+- `BloodKillFog` は削除。`Render/StageColorGrade.h/.cpp`(vcxproj/filters に登録)に置き換えた。血殺中(`GetIsUltimating`)に背景を塗り、ステージの色を変える。フェードは前と同じ 入り8F / 戻り15F(実フレーム)。
+- 色の決め方: 輝度を取り、`blackLevel`〜`whiteLevel` を 0〜1 に広げて、暗い所の色〜明るい所の色へ割り当てる。値は `StageColorGrade.cpp` 先頭の `kRedPreset` / `kGrayPreset`(背景の色も)。**灰色は `Update(isActive, Type::Gray)` で使えるが、まだどこからも呼んでいない**。
+- `LitModelPS.hlsl` の最後(フォグの後)で計算。定数は b7(`ColorGradeBuffer`)、`ModelShaderManager::SetColorGrade / ClearColorGrade`。色変え中は明かりの無いステージも `DrawModel` が `LitModelPS` を通す。`Stage::DrawTunnel` も `DrawModel` にした。
+- Begin〜End の間に描いたステージだけ変わる。プレイヤー(`CharacterLook`)・敵・床の血の跡(2Dポリゴン)・エフェクトは変わらない。
+- フォグの消去に合わせて、`Stage::Draw` の列車・夜のフォグは血殺中もかかる(色変えで一緒に赤くなる)。
+- Debug(x64)でビルドは通った。一時コードで色変えを強制して、デモ・列車・ステージ1の赤と、デモ・ステージ1の灰色を画面で確認した(一時コードは消した)。**実際に血殺を出しての確認はまだ**(フェードの速さ・黒い敵との見え方・色の強さ)。
+
+### 2026-11-08 血殺の文字を敵の後ろに描く
+- `SceneMain::NormalDraw` の `m_uiManager->DrawBack()` を、敵を描く前(ステージの直後)へ移した。順番は ステージ → DrawBack → 敵 → プレイヤー → エフェクト → Draw。`UILayer::Back` を使っているのは今は `KessatsuUI` だけなので、レイヤーは増やしていない。白い飛沫など、黒い敵の後ろに出したい2Dは `GetLayer()` で `UILayer::Back` を返す。
+- 一時コードで血殺の状態にして列車ステージで撮影し、Back のUIが黒い敵とプレイヤーの後ろに出ることを確認した(一時コードは消した)。Debug(x64)でビルドは通った。
+- トドメのムービーの `isHideKessatsu`(Sheath から血殺の文字を消す)は削除した。文字が残っても黒い敵は隠れない。文字はムービーの最後まで出る(ゲームでの確認はまだ)。
+
+### 2026-11-08 血殺の白い爆発(2D画像)
+- 血殺が始まった瞬間に、白い爆発の画像を敵の後ろに出す。`KessatsuUI` に追加(`UILayer::Back`)。値は .cpp 先頭の `kBurst〜`。
+- 動き(実フレーム): 4Fで広がる → 演出が終わるまで残る(最初の66Fは少しずつ広がる) → 演出が終わったらビネットと一緒に15Fで消える(`GetFadeAlpha`。血殺の文字も同じ)。画像は3枚からランダム。向きは右上(`kBurstAngleUp` 30°±`kBurstAngleRange` 12°)。
+- 位置: `BattleManager::SetUltStart(frames, burstPos)`。通常は当たった敵の `other.GetWorldPos()`、トドメのムービーはガトリングの位置。Draw で毎フレーム画面の位置に直すのでカメラについてくる。画面の中ほど(`kBurstMinX`〜)に収め、カメラの後ろのときは前の位置のまま。
+- 画像は `data/UI/bloodUI/white_burst_0～2.png`(1024px、全部白でアルファが形)。中心が当たった点で、+X へ飛び散る形(全方向だと花火に見えたので作り直した)。芯の破片・細い棘・かすれた筋・破片・霧状の粒(最大16000個)を描き、外側ほど強くノイズで削っている。粒は1〜2pxあるので、`kBurstScale` を小さくしすぎるとつぶれる。作り直しは `../tools/BloodDecalGen/MakeWhiteBurst.ps1`。3Dの `BloodSplash_B_White` はそのまま。
+- Debug(x64)でビルドは通った。一時コードで列車ステージの敵の近くに出して、広がり方・消え方・黒い敵とプレイヤーの後ろに出ることを画面で確認した(一時コードは消した)。**実際に血殺を出しての確認はまだ**(血殺のカメラでの位置・大きさ)。
+
+### 2026-11-08 血殺のカメラが寄らないことがあった件
+- 原因: 当たった敵がその一撃で死ぬと `GetAttackTarget()` が `nullptr` になり、`UltCameraState` / `SkillKessatuCamera` が同じフレームで `PlayerFollowCamera` に戻っていた(スロー・色変え・文字は出る)。プレイのログで必殺技22回中8回。
+- 直したこと: どちらのカメラも `m_enemyPos` を持つ。Enter で `BattleManager::GetUltBurstPos()`(当たった位置)を入れ、敵がいる間は毎フレーム更新する。見失ったらその演出の間は最後の位置のまま(別の敵に飛ばないように取り直さない)。ブレンドの pivot も `m_enemyPos`。
+- 一時コードで敵がいない状態で両方のカメラに入れて、演出の120Fの間カメラが戻らないことをログで確認した(一時コードは消した)。Debug(x64)でビルドは通った。**実際に敵を倒しての確認はまだ**。
+- 10/20 のメモの「スロー中は `m_ultCount` がほぼ減らない・約228F」は誤り。`m_ultCount` は `int` なので、0<タイムスケール<=1 なら切り捨てで1フレームに1ずつ減る(必殺技120F、スキル血殺60F)。
+
+### 2026-11-09 血殺の墨のビネット
+- 血殺の間、画面のふちをムラのある黒で暗くする。`KessatsuUI` の `DrawVignette`(`UILayer::Back`)。描く順は ビネット → 白い爆発 → 血殺の文字 なので、爆発と文字は暗くならない。Back は敵より先に描くので、敵・プレイヤー・エフェクトも暗くならない(暗くなるのはステージと背景だけ)。
+- フェードは色変えと同じ 入り8F / 戻り15F(実フレーム、.cpp 先頭の `kVignetteFade〜`)。乗算ではなく、黒をアルファで重ねている(結果は同じで、フェードしやすい)。
+- 画像は `data/UI/bloodUI/ink_vignette.png`(1280x720、全部黒でアルファが濃さ)。作り直しは `../tools/BloodDecalGen/MakeInkVignette.ps1`(`Smooth(0.55f, 0.90f, shaped)` が暗くなる範囲、`0.62f` がムラの強さ)。
+- 一時コードで血殺の状態にして、列車ステージとステージ1の画面で確認した(一時コードは消した)。Debug(x64)でビルドは通った。**実際に血殺を出しての確認はまだ**。
+
+### 2026-11-09 血殺の斬撃の線(2D画像)
+- `KessatsuUI::DrawSlash`。白い爆発の中心から、爆発と同じ向きに白い線を3本出す(1本目が長くて太い、2・3本目は角度と位置を少しずらす)。値は .cpp 先頭の `kSlash〜`。
+- 時間は `m_burstFrame` をそのまま使う(実フレーム): 4Fで伸びる(線ごとに1Fずれる) → 演出が終わるまで残る → 爆発・文字・ビネットと一緒に15Fで消える(`GetFadeAlpha`)。
+- 描く順は ビネット → 白い爆発 → 線 → 血殺の文字。`UILayer::Back` なので線は黒い敵とプレイヤーの後ろ(ユーザーが選んだ)。手前に出すなら `UIBase` に手前用の描画を足す。
+- 画像は `data/UI/bloodUI/slash_streak.png`(1280x96、全部白でアルファが形)。作り直しは `../tools/BloodDecalGen/MakeSlashStreak.ps1`。
+- 一時コードで血殺の状態にして、列車ステージとステージ1の画面で確認した(一時コードは消した)。Debug(x64)でビルドは通った。**実際に血殺を出しての確認はまだ**。
+
+### 2026-11-09 通常ヒットの血を新しくした(BloodHit)
+- `data/Effect/Blood/BloodHit.efk`(1/20スケール・+Zへ飛ぶ・20倍で再生は前と同じ)。`AsyncData::BloodHitEffect`。`EnemyBase::PlayBloodSplash` の通常ヒットで再生。`EnemyBase.cpp` 先頭の `kUseBloodHit` を false にすると前の A〜C に戻る。必殺技中の白い血・首の血は変えていない。
+- 作業ファイルは `../EffectTools/BloodHit/BloodHit_v1〜v3`(v3 が採用版。大きさ確認用の Dummy ノード入り)。テクスチャの生成は `../EffectTools/BloodHit/gen_blood_textures.ps1 出力先 接尾辞`。v3 で使っているのは `BH_Core_d / Chunk_c / Fine_c / Mist_e / Shred_c / Strand_c`(エディタがパスごとにキャッシュするので、作り直すときは接尾辞を変える)。
+- ノード: Mist(霧) / Chunk(厚い塊) / Fine(粒) / Shred(暗い破片) / StrandHead+StrandBody(細い糸) / Core(芯。最後に描く)。
+- 調べて分かったこと: `LocationAbsValues` の Drag は PVA の初速には効かない。失速は `LocationValues.Type=Easing`(StartRapidly / EndSlowly)で作り、重力だけ力場で足している。移動方向ビルボードは1フレーム目の向きが合わないので `FadeIn.Frame=1` で隠している。形を削って消す表現(AlphaCutoff FCurve)はゲームでも動いた。
+- 確認: Release(x64)のビルドは通った。一時コードでステージ1のプレイヤーの前に再生して、新旧を画面で比べた(一時コードは消した)。8Fごとに繰り返し再生した Draw:Effect(平均/最大ms)は Release で BloodHit 約0.13/0.4、BloodSplash(A) 約0.32/1.0。**実際に敵を斬っての確認はまだ**(連打での見え方、敵に重なったときの見え方、Debug の重さ)。
+
+- (追記)通常ヒットの血を3パターンにした。`BloodHit`(A: 横へ飛んで弧を描く)、`BloodHit_C`(低く左右に広がる扇形・粒と糸が多い)、`BloodHit_D`(低く片側(+X)へ流れる)。`AsyncData::BloodHitEffect / C / D` は連続した値にしてあり、`PlayBloodSplash` が `GetRand` で選ぶ。作業ファイルは `../EffectTools/BloodHit/BloodHit_C_v1`・`BloodHit_D_v1`(テクスチャは A と同じ)。Release で撮影して違いを確認した(`../EffectTools/BloodHit/game_patterns_A_C_D.png`)。Draw:Effect は C を8Fごとに繰り返して 約0.13/0.3ms。D は常に同じ側へ流れる(左右反転はまだ無い)。
+
+### 2026-11-09 確殺・暗殺の血を分けた
+- 暗殺 `data/Effect/Blood/BloodAssassin.efk`(3回脈打つ・約1.4秒)、確殺 `BloodKill.efk`(17回の噴射が続く・約2.4秒)。首の位置から斜め上へ噴く。テクスチャは BloodHit と同じ。作業ファイルは `../EffectTools/BloodExec/BloodAssassin_v1`・`BloodKill_v1`(Dummy ノード入り)。
+- `AsyncData::BloodAssassinEffect / BloodKillEffect`。`EnemyBase::PlayHeadBreakBlood(AsyncData)` に変えて、地上・空中の暗殺と確殺で出し分ける。
+- 敵が倒れても首から噴くように `EnemyBase::UpdateHeadBloodPos()`(`SetPosPlayingEffekseer3DEffect` で再生中の位置を動かす)を3つのステートの Update で呼ぶ。粒は `LocationEffectType=WhenCreating` なので、出た後は空中に残り、発生元だけが首についていく。`Pulse1〜3` は親(None)で、時間差と大きさだけ変えている。
+- 落とし穴: **別のフォルダへ「名前を付けて保存」すると、テクスチャの参照は元のフォルダのまま**。そのまま書き出すとゲームで白い四角になる(確殺版で実際に起きた)。別の版を作るときは ColorTexture を指定し直す。
+- 確認: Release(x64)のビルドは通った。一時コードでステージ1に敵を出して `PlayerStateAssasin` / `PlayerStatePartBrokenKill` に入れ、演出の中で血の出方と首への追従を画面で確認した(一時コードは消した)。**空中暗殺・確殺のパターンBの片方・ボスは未確認。負荷も未測定**。
+
+### 2026-11-09 部位破壊の血(BloodPartBreak)
+- `data/Effect/Blood/BloodPartBreak.efk`(肩から外へ太く噴いて、そのあと約2秒滴る)。`AsyncData::BloodPartBreakEffect`。作業ファイルは `../EffectTools/BloodExec/BloodPartBreak_v1`(Dummy ノード入り)。滴りは `Drip` ノード。
+- `EnemyBase::OnDamage` の `OnPartBreak()` の直後に `PlayPartBreakBlood()`。位置は `m_status.leftArmFrame`(-1 なら出ない)、+Z は体の中心から肩へ向かう向き。追従は `UpdatePartBloodPos()` を Swordman / Gunner / Bazooka の `Update` の `m_leftArmPart->Update()` の後で呼ぶ。首の血と共通の `UpdateBloodPos(handle, frame)` にまとめた。ボス(R0/R1)は `OnDamage` の `OnPartBreak` がコメントアウトされているので出ない。デバッグの Z キーの部位破壊でも出ない。
+- 確認: Release(x64)のビルドは通った。一時コードで Swordman を出して部位破壊させ、肩から噴くこと・走っても追従することを画面で確認した(一時コードは消した)。実際の攻撃での部位破壊・Gunner / Bazooka は未確認。
+- (追記)滴りを太い水滴(`BH_Fine_a`)にして試したが、見た目が変だったので元の細い水滴(`BH_Fine_c`、数30、重力は力場)に戻した。そのあと落下だけ `PVA.Acceleration`(y=-0.014)に変えた(力場の重力は20倍に比例しないため)。敵が向きを変えたフレームで滴りが下へ伸びるのを確認したが、止まっている間はカメラの向きによって体に隠れて見えない。
+- 分かったこと: **`LocalForceField` の重力はゲーム側の `SetScale`(20倍)に比例しないらしい**。力場で重力をかけた血はエディタより落ちない(通常ヒット A/C/D・暗殺・確殺・部位破壊の噴出)。`file_export` の magnification=20・再生スケール1 にすると落下が速くなりすぎたので採用していない。PVA の加速度はスケールに比例する。
+
+### 2026-11-09 血殺・トドメの血(BloodUlt)
+- `data/Effect/Blood/BloodUlt.efk`(白のみ・奥へ大きく広がる A1)。`AsyncData::BloodUltEffect`。`PlayBloodSplash` の必殺技中と `KingmechFinisher::PlayWhiteBlood` を `BloodSplash_B_White` から置き換えた。
+- 作業ファイルは `../EffectTools/BloodExec/BloodUlt_v1`(A1〜A3 白のみ、B1〜B3 白と墨。1=奥へ、2=斜め上へ、3=低く横へ。Dummy ノード入り)。力場の重力は使わず Easing の移動だけ。白と墨のテクスチャは `gen_blood_textures.ps1 出力先 接尾辞 white|ink`。
+- 確認: Release(x64)のビルドは通った。一時コードで `SetUltStart` して血殺の画面で撮影した(一時コードは消した)。Draw:Effect は8Fごとの繰り返しで 約0.4〜0.5/1.0〜1.2ms。**白い血は2Dの白い爆発の上だと埋もれる**(黒い敵の上では見える)。実際の血殺・Kingmech のトドメは未確認。
+- 灰色に見えたので真っ白に変更(作業ファイルは `BloodUlt_A1W`)。テクスチャは `gen_blood_textures.ps1 出力先 pw pure`(RGB 全部1、アルファを上げる)の `BH_*_pw`。色の乱数と Track の灰色をやめ、半透明の霧(Mist)は黒い敵の上で灰色になるので外した。白い爆発に重なって埋もれるのはユーザー了承済み。変更後の Draw:Effect は未測定(描画ノードは減った)。
+- 元の血を削除: `BloodSplash`, `_B`, `_C`, `_B_White`(.efk/.efkefc)と `Texture/Blood*.png` 13枚、`AsyncData::BloodSplashEffectA/B/C/White` と `kUseBloodHit`。戻すときは git から。
+
+### 2026-11-09 スキル血殺の姿勢(途中・自分で実装する)
+- 手順は `../進捗/note_スキル血殺の姿勢と旗の実装手順.md`。一度試して動きを確かめ、コードはすべて消した(ユーザーが自分で書く)。段階1の1から。
+- 決定: スキル攻撃を自前フレーム(`m_frame`)で進める、最後の一撃で旗を立ててスキルの終わりに血殺を発動、姿勢は `Dodge_Combat_F` の13F(分身と同じ形だった)。
+- 11/10: 段階3まで実装済み(1〜2はユーザー、3は一部Claude)。Debug x64のビルドは通った。**ゲームでの確認はまだ**(手順書の段階1・2・3の「確認」)。次は確認と、必要なら段階4の見た目調整。
 
 ## 10/27 やること: 背中の腕の切り離し Step2〜
 **手順とコードは全部 `../進捗/背中の腕の切り離し_手順.md` に書いてある。** ここは順番と進み具合だけ。
@@ -1266,16 +1542,21 @@
 ---
 
 ## TODO / 次にやること
+- [ ] 床の血の跡(11/08)をゲームで確認: 色・量・残る長さ、カメラが動いたときのちらつき、斜面と床の端、空中での出方- [ ] **ステージ1の曲がり角(11/07)をゲームで確認**: 7か所の角を走って通れるか、カメラが回りきるか、角の直後の壁走り(特に角1の先・角3の先・角5の先)の向き、角の外から建物の裏や空が見えないか、角4・角6の見張りを背中から暗殺できるか、スタートから角1までの約170mが長くないか
+- [ ] ガードブレイクのチャンスUIをゲームで確認。チャンスの長さを決める(今は `kChanceTime` 60F×スロー0.2で実時間約5秒。リングもこの長さで減る)、チャンス中の無敵を決める
+- [ ] ステージ1の仕上げ(11/06)をゲームで確認: 敵の増え方と谷の8体の戦いやすさ、小物に敵が引っかからないか、血殺の色変えが強すぎないか、スキル演出のカメラで建物の裏が欠けて見えないか
 - [ ] **ステージ1(StageType::Cyber)をゲームで確認**: 8mの溝を壁走りで渡れるか(ぬれた通りの先の2連続も)、溝の区画(2枚)と鉄格子の通路(3枚)・ボス前(4枚)で続けて壁走りできるか(落下中に壁走りゾーンの壁へ張り付くようにしたので、ほかの所で意図せず張り付かないかも)、縦穴3か所を壁蹴りで登れるか(広場の出口の縦穴は6m)、10mの飛び降りで困らないか、駅の階段・斜面(約27〜30°)を登れるか、駅の見張りを暗殺できるか、エリア・敵の位置、フレームレート
 - [ ] ImGui のウィンドウをゲームの外に出してみる(描画が崩れないか・ゲームが止まらないか・キー入力)。Enemy Debug ウィンドウで攻撃を出して確認
 - [ ] ボスの連続攻撃: コードはできた。BossEnemyPirateAttack.csv に1撃目・2撃目の行を書いてゲームで確認(向き・間の長さ・連撃中の被弾で止まってよいか)
 - [ ] 追加したボスのアニメ(回避・コンボ)を攻撃CSV・ステートで使う
 - [ ] ボスの剣をゲームで確認(握り・向き)。腰の剣(Pirate_Sword_In_Belt)を消すか決める
+- [ ] Kingmech のトドメのムービーをゲームで確認(尺・カメラ・納刀のモーション・音)。よければミサイル渡りを足す
 - [ ] ボスのラウンド切り替えの演出(7→8 のイベント。R0 の死体を消す・変身エフェクト・カメラ)
 - [ ] 一時ライト(TempTopLight)を本番のライト調整ができたら消す
 - [ ] BossArm: ゲームで付け根のずらしを ImGui で決めて定数に書き写す(今は0＝ボスの腕に重なる)。Anim の Play で腕だけ違うアニメが流れるか確認
 - [ ] BossArm Step2: 当たり判定・ステータス行・腕の長さで手の位置を制限、敵のステート(Hit/HitAir/AirStay/AirFall)を腕で通す。本物の腕モデル(骨・アニメ入り)
 - [ ] BattleSmoothCamera の戻る条件をゲームで確認(30F / 800 / 100 の調整)
+- [ ] BattleSmoothCamera のサイドの決め方をゲームで確認(壁ぎわで逆サイドへ入るか、見えない壁で変わらないか、少しかするだけで変わりすぎないか)
 - [ ] 落下禁止をゲームで確認(縁で止まる・辺に沿って滑る・角で止まる・攻撃・回避の後に歩けば落ちる)
 - [ ] カメラとステージの当たり判定(案A)をゲームで確認。めり込みが気になれば案B(MV1CollCheck_Sphere の二分探索)へ
 - [x] FOVパンチ(ゲームで強さ・長さを確認。場面ごとの強さ・向きは note の8章の表)
@@ -1303,11 +1584,13 @@
 - [ ] ゲームで予備動作の長さ・向き固定のタイミング(kAttackPreTrackEndRate)を確認。AttackPre2 も使うか検討
 - [x] 実際のUIクラス(HPバーなど)を作って `InGameInit()` に登録する(PlayerHUD。必殺技中などに隠すかはまだ)
 - [ ] ゲームを起動して血殺中に敵(本体・取れた腕/頭)が黒くなるか確認
-- [ ] ゲームを起動して見た目を確認(フォグの距離・ステージの暗さ、血の大きさ(20倍)、向き、白い血、スロー時の速さ)
+- [ ] ゲームを起動して見た目を確認(血殺の色変えの強さ、血の大きさ(20倍)、向き、白い血、スロー時の速さ)
+- [ ] 新しい通常ヒットの血(BloodHit)を実際に敵を斬って確認: 連打で同じ形が目立たないか、敵に重なったときの見え方。よければ血殺・トドメ版を派生させる
+- [ ] 確殺・暗殺の血(BloodKill / BloodAssassin)を実際の操作で確認: 空中暗殺、確殺のパターンA/B、ボス、霧の丸さ、負荷
 - [ ] 多段ヒットで血が出すぎないか確認。多すぎるなら一定フレーム出さない制限を入れる
 - [ ] 血殺演出の残り(2D極太斬撃、3Dの白い斬撃、「血殺」の文字、端を黒くするビネット、振動)
   - 描画順の案: 背景(赤) → ステージ(赤フォグ) → キャラ → 2D斬撃 → 3D白斬撃 → 血しぶき → ビネット → 文字
-- [ ] フォグで色が濁るようなら、ステージ用のグラデーションマップシェーダーを検討
+- [x] ステージ用のグラデーションマップシェーダー(11/08 StageColorGrade。フォグは削除)
 - [ ] ルートの CLAUDE.md の記載が `2026_summer/` のままなので、`2026_winter/` に直す
 - [ ] **列車ステージ(Ch0 0-1)をゲームで確認**(ステージセレクトの3番目「列車ステージ」。StageType::Train)
   - 見た目 `data/Stage/TrainStage/TrainStage.mv1`、当たり判定は箱とスロープだけの `TrainStageCol.mv1`(StageInfo::colModel)。トンネル `data/Stage/TrainTunnel/TrainTunnel.mv1`(13200でループ)を `Stage::DrawTunnel` でカメラの前後6000だけ描き、+Z へ流す(速さ kTunnelScrollSpeed=20/F、y=-150)

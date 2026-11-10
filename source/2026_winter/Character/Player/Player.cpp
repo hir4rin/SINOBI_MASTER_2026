@@ -4,8 +4,10 @@
 #include "Character/Player/State/Locomotion/PlayerStateMove.h"
 #include "PlayerWeapon.h"
 #include "Collision/HitCol.h"
+#include "Collision/AttackCol.h"
 #include "Camera/CameraManager.h"
 #include "Camera/LockOnManager.h"
+#include "Battle/BattleManager.h"
 #include "DataLoader/DataManager.h"
 #include "Character/Enemy/EnemyBase.h"
 #include "Render/ModelShaderManager.h"
@@ -42,6 +44,13 @@ namespace
 
 	constexpr float kCameraShakePower = 2.5f;//カメラの揺れの強さ
 	constexpr float kCameraShakeTime = 5.0f;//カメラの揺れの時間
+
+	constexpr float kAirHitKnockBackXZ = 3.0f;//空中被弾で横に押される力
+	constexpr float kAirHitKnockBackY = 2.0f;//空中被弾で少しだけ浮く力
+
+	constexpr int kSkillKessatuFrame = 60;//スキル血殺の演出の長さ(タイムスケールを掛けて減る)
+	constexpr int kSkillKessatuSlowFrame = 60;//スキル血殺のスローの長さ(実フレーム)
+	constexpr float kSkillKessatuTimeScaleRate = 0.1f;//スキル血殺中の時間スケール
 
 
 	constexpr float kBloodWingScale = 14.0f;//必殺技状態の翼エフェクトのスケール//エフェクトは長さ10ほどで作っている
@@ -221,10 +230,6 @@ void Player::Update(Camera& camera)
 		}
 	}
 
-	
-
-
-
 	//押し戻しの処理が続かないように消す//縦の速度(重力)は空中のステート(Jump,Fall,Attack)が自分で作る
 	m_rb.m_vel = Vector3(0, 0, 0);
 
@@ -233,6 +238,13 @@ void Player::Update(Camera& camera)
 	UpdateSoftTarget();
 
 	UpdateGuardBreakChance();//ブレイクのチャンス
+
+	//ボスのトドメのムービー//やられていたら入らない
+	if (!m_bossFinisherTarget.expired())
+	{
+		if (std::dynamic_pointer_cast<PlayerStateDie>(m_currentState))m_bossFinisherTarget.reset();
+		else ChangeState(std::make_shared<PlayerStateBossFinisher>(GetWeakPtr()));
+	}
 
 	if (m_currentState)
 	{
@@ -350,8 +362,51 @@ void Player::OnDamage(Collider& other, AttackData& data)
 	bool isUltAttacking = std::dynamic_pointer_cast<PlayerStateUlt>(m_currentState) != nullptr;
 	if (isSkillAttacking || isUltAttacking)return;
 
+
+	//Kirimomi攻撃なら吹き飛ばせる
+	if (data.isKirimomi)
+	{
+		//ヒット情報の作成
+		HitInfo hitinfo = {
+			.knockBackVel = CalcKnockBackDir(other) * data.knockBackPower.x + Vector3(0.0f, data.knockBackPower.y, 0.0f),
+			.isKirimomi = data.isKirimomi,
+		};
+		//吹き飛ばしステートにする
+		ChangeState(std::make_shared<PlayerHitKirimomiState>(GetWeakPtr(), hitinfo));
+		return;
+	}
+
+	//空中で被弾したら小さく吹っ飛んで落ちる//OnDamage中はIsFloorが使えないので前フレームの接地を見る
+	if (!WasFloor())
+	{
+		//吹き飛ぶ力は攻撃ではなくプレイヤー側の値
+		HitInfo hitinfo = {
+			.knockBackVel = CalcKnockBackDir(other) * kAirHitKnockBackXZ + Vector3(0.0f, kAirHitKnockBackY, 0.0f),
+		};
+		ChangeState(std::make_shared<PlayerHitAirState>(GetWeakPtr(), hitinfo));
+		return;
+	}
+
 	//stateをhitStateにする
 	ChangeState(std::make_shared<PlayerStateHit>(GetWeakPtr(), data));
+}
+
+Vector3 Player::CalcKnockBackDir(Collider& other)
+{
+	//攻撃判定は持ち主の前に出ているので、持ち主の位置を基準にする
+	Vector3 attackerPos = other.GetRigidBody().GetPos();
+	auto attackCol = dynamic_cast<AttackCol*>(&other);
+	if (attackCol)
+	{
+		auto attacker = attackCol->GetOwner().lock();
+		if (attacker) attackerPos = attacker->GetRigidBody().GetPos();
+	}
+
+	Vector3 dir = m_rb.m_pos - attackerPos;
+	dir.y = 0.0f;
+	//重なっていたら後ろへ
+	if (dir.Magnitude() <= 0.0f) dir = m_targetVec * -1.0f;
+	return dir.Normalize();
 }
 
 void Player::OnParried()
@@ -369,6 +424,27 @@ void Player::OnJustDodge(Collider& other, AttackData& data)
 	//現在の状態に通知する//回避状態以外は何もしない
 	if (!m_currentState)return;
 	m_currentState->OnJustDodge(other, data);
+}
+
+float Player::GetAttackFrame()
+{
+	//ステートがないときは今のアニメのフレームを返す//保険
+	const float animFrame = m_anim.GetNowAnimFrame();
+
+	//窓口
+	return m_currentState ? m_currentState->GetAttackFrame(animFrame) : animFrame;
+}
+
+void Player::StartSkillKessatsu(const Vector3& pos)
+{
+	auto battleMgr = System::GetInstance().GetBattleMgr();
+	battleMgr->SetUltStart(kSkillKessatuFrame, pos);
+	if (battleMgr->GetIsLastHitEventPlaying())return;
+	System::GetInstance().SetTimeScaleForFrames(kSkillKessatuTimeScaleRate, kSkillKessatuSlowFrame);
+	if (auto cameraManager = m_cameraManager.lock())
+	{
+		cameraManager->ChangeStateFromScene(CameraManager::CameraStateName::SkillKessatuCamera);
+	}
 }
 
 void Player::ForceIdleState()
@@ -557,6 +633,14 @@ bool Player::IsMoveState() const
 		std::dynamic_pointer_cast<PlayerStateFastRun>(m_currentState);
 }
 
+bool Player::CanInputAssasinState() const
+{
+	return std::dynamic_pointer_cast<PlayerStateIdle>(m_currentState) ||
+		IsMoveState() ||
+		std::dynamic_pointer_cast<PlayerStateJump>(m_currentState) ||
+		std::dynamic_pointer_cast<PlayerStateFall>(m_currentState);
+}
+
 std::shared_ptr<EnemyBase> Player::GetAssasinTarget() const
 {
 	return m_assasinTarget.lock();
@@ -579,6 +663,15 @@ const bool Player::CanPartBrokenFinish() const
 	auto partBrokenTarget = GetPartBrokenTarget();
 
 	return partBrokenTarget ? true : false;
+}
+
+bool Player::CanInputPartBrokenState() const
+{
+	return std::dynamic_pointer_cast<PlayerStateIdle>(m_currentState) ||
+		IsMoveState() ||
+		std::dynamic_pointer_cast<PlayerStateAttack>(m_currentState) ||
+		std::dynamic_pointer_cast<PlayerStateAttackLanding>(m_currentState) ||
+		std::dynamic_pointer_cast<PlayerStateSkillAttack>(m_currentState);
 }
 
 
@@ -938,7 +1031,7 @@ void Player::ApplyPos()
 	//}
 
 		//歩いて地面から離れたら落下ステートにする
-	if (IsLeftFloor())
+	if (IsLeftFloor() && !GetBossFinisherState())//トドメのムービーは動きが決まっているので落ちない
 	{
 		//歩いて地面から離れたときだけコヨーテタイムのジャンプを許可する
 		bool canCoyoteJump = std::dynamic_pointer_cast<PlayerStateMove>(m_currentState) != nullptr;

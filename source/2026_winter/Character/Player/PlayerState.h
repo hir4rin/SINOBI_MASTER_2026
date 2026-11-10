@@ -28,6 +28,12 @@ public:
 	//壁判定のレイ(kWallCheckDistance)のデバッグ描画//当たっていたら緑、当たっていなかったら赤
 	void DebugDrawWallCheck();
 
+	//攻撃のフレーム数を取得(スキル攻撃用
+	virtual float GetAttackFrame(float animFrame)const { return animFrame; }
+	virtual float GetAttackEndFrame(float animEnd)const { return animEnd; }
+
+	virtual float GetAttackEndFrame() { return 1.0f; }
+
 protected:
 
 	//状態を持つプレイヤーへの弱い参照

@@ -5,6 +5,7 @@
 #include "Render/CharacterLook.h"
 #include "DataLoader/DataManager.h"
 #include "Stage/StageInfo.h"
+#include "FrameProfiler.h"
 #include <cassert>
 
 namespace
@@ -50,10 +51,13 @@ namespace
 	const std::string kBloodWingEffectPath = "data/Effect/Skill/BloodWing.efk";//
 
 	//敵が斬られたときの血しぶき
-	const std::string kBloodSplashAEffectPath = "data/Effect/Blood/BloodSplash.efk";
-	const std::string kBloodSplashBEffectPath = "data/Effect/Blood/BloodSplash_B.efk";
-	const std::string kBloodSplashCEffectPath = "data/Effect/Blood/BloodSplash_C.efk";
-	const std::string kBloodSplashWhiteEffectPath = "data/Effect/Blood/BloodSplash_B_White.efk";//必殺技中
+	const std::string kBloodHitEffectPath = "data/Effect/Blood/BloodHit.efk";//通常ヒット
+	const std::string kBloodHitCEffectPath = "data/Effect/Blood/BloodHit_C.efk";
+	const std::string kBloodHitDEffectPath = "data/Effect/Blood/BloodHit_D.efk";
+	const std::string kBloodAssassinEffectPath = "data/Effect/Blood/BloodAssassin.efk";
+	const std::string kBloodKillEffectPath = "data/Effect/Blood/BloodKill.efk";
+	const std::string kBloodPartBreakEffectPath = "data/Effect/Blood/BloodPartBreak.efk";
+	const std::string kBloodUltEffectPath = "data/Effect/Blood/BloodUlt.efk";
 
 	//Kingmechのミサイルの雨
 	const std::string kKingmechMissileWarningEffectPath = "data/Effect/Kingmech/MissileWarning.efk";
@@ -84,10 +88,13 @@ void System::LoadCommon()
 	m_asyncHandles[AsyncData::GhostSkill3FallEffect] = LoadEffekseerEffect(kGhostSkill3FallEffectPath.c_str());
 	m_asyncHandles[AsyncData::GhostSkill3ImpactEffect] = LoadEffekseerEffect(kGhostSkill3ImpactEffectPath.c_str());
 	m_asyncHandles[AsyncData::BloodWingEffect] = LoadEffekseerEffect(kBloodWingEffectPath.c_str());
-	m_asyncHandles[AsyncData::BloodSplashEffectA] = LoadEffekseerEffect(kBloodSplashAEffectPath.c_str());
-	m_asyncHandles[AsyncData::BloodSplashEffectB] = LoadEffekseerEffect(kBloodSplashBEffectPath.c_str());
-	m_asyncHandles[AsyncData::BloodSplashEffectC] = LoadEffekseerEffect(kBloodSplashCEffectPath.c_str());
-	m_asyncHandles[AsyncData::BloodSplashEffectWhite] = LoadEffekseerEffect(kBloodSplashWhiteEffectPath.c_str());
+	m_asyncHandles[AsyncData::BloodHitEffect] = LoadEffekseerEffect(kBloodHitEffectPath.c_str());
+	m_asyncHandles[AsyncData::BloodHitEffectC] = LoadEffekseerEffect(kBloodHitCEffectPath.c_str());
+	m_asyncHandles[AsyncData::BloodHitEffectD] = LoadEffekseerEffect(kBloodHitDEffectPath.c_str());
+	m_asyncHandles[AsyncData::BloodAssassinEffect] = LoadEffekseerEffect(kBloodAssassinEffectPath.c_str());
+	m_asyncHandles[AsyncData::BloodKillEffect] = LoadEffekseerEffect(kBloodKillEffectPath.c_str());
+	m_asyncHandles[AsyncData::BloodPartBreakEffect] = LoadEffekseerEffect(kBloodPartBreakEffectPath.c_str());
+	m_asyncHandles[AsyncData::BloodUltEffect] = LoadEffekseerEffect(kBloodUltEffectPath.c_str());
 }
 
 void System::LoadStage(StageType type)
@@ -256,11 +263,26 @@ void System::Terminate()
 	DeleteEffekseerEffect(m_asyncHandles[AsyncData::GhostSkill3FallEffect]);
 	DeleteEffekseerEffect(m_asyncHandles[AsyncData::GhostSkill3ImpactEffect]);
 	DeleteEffekseerEffect(m_asyncHandles[AsyncData::BloodWingEffect]);
-	DeleteEffekseerEffect(m_asyncHandles[AsyncData::BloodSplashEffectA]);
-	DeleteEffekseerEffect(m_asyncHandles[AsyncData::BloodSplashEffectB]);
-	DeleteEffekseerEffect(m_asyncHandles[AsyncData::BloodSplashEffectC]);
-	DeleteEffekseerEffect(m_asyncHandles[AsyncData::BloodSplashEffectWhite]);
+	DeleteEffekseerEffect(m_asyncHandles[AsyncData::BloodHitEffect]);
+	DeleteEffekseerEffect(m_asyncHandles[AsyncData::BloodHitEffectC]);
+	DeleteEffekseerEffect(m_asyncHandles[AsyncData::BloodHitEffectD]);
+	DeleteEffekseerEffect(m_asyncHandles[AsyncData::BloodAssassinEffect]);
+	DeleteEffekseerEffect(m_asyncHandles[AsyncData::BloodKillEffect]);
+	DeleteEffekseerEffect(m_asyncHandles[AsyncData::BloodPartBreakEffect]);
+	DeleteEffekseerEffect(m_asyncHandles[AsyncData::BloodUltEffect]);
 
+}
+
+void System::SetTimeScale(float scale, std::source_location location)
+{
+	if (scale != timeScale) FrameProfiler::GetInstance().RecordTimeScale(timeScale, scale, location.file_name(), static_cast<int>(location.line()));
+	timeScale = scale;
+}
+
+void System::SetTimeScaleForFrames(float timescale, int frames, std::source_location location)
+{
+	SetTimeScale(timescale, location);//時間のスケールを設定する
+	m_frameCount = frames;//フレームカウントを設定する
 }
 
 void System::Update()
@@ -276,7 +298,7 @@ void System::Update()
 
 		if (m_frameCount <= 0)
 		{
-			timeScale = 1.0f;//時間のスケールを元に戻す
+			SetTimeScale(1.0f);//時間のスケールを元に戻す
 			m_frameCount = -1;//フレームカウントを0にする
 		}
 	}

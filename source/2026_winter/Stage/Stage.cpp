@@ -35,12 +35,14 @@ namespace
 	constexpr float kTrainFogEnd = 5000.0f;//真っ暗になる距離(SceneMainのファークリップ)
 	constexpr int kTrainFogColor = 8;//フォグの色(ほぼ黒)
 
-	//ステージ1の夜のフォグ(近くはそのまま、遠くの建物を暗い青に沈める)
-	constexpr float kNightFogStart = 1500.0f;
-	constexpr float kNightFogEnd = 9000.0f;
-	constexpr int kNightFogR = 10;
-	constexpr int kNightFogG = 12;
-	constexpr int kNightFogB = 24;
+	//ステージ1の夜のフォグ(近くはそのまま、遠くの建物を空の地平線の色に沈める。カメラのファー5000より手前で消しきる)
+	constexpr float kNightFogStart = 2200.0f;
+	constexpr float kNightFogEnd = 4950.0f;
+	constexpr float kFogOffStart = 100000.0f;//フォグを切るときの距離
+	constexpr float kFogOffEnd = 200000.0f;
+	constexpr int kNightFogR = 48;
+	constexpr int kNightFogG = 24;
+	constexpr int kNightFogB = 62;
 }
 
 
@@ -83,7 +85,7 @@ void Stage::GameInit(const StageInfo& info)
 		const COLOR_F tunnelScale = GetColorF(kTunnelColorScale, kTunnelColorScale, kTunnelColorScale, 1.0f);
 		MV1SetAmbColorScale(m_tunnelHandle, tunnelScale);
 		MV1SetDifColorScale(m_tunnelHandle, tunnelScale);
-		//列車はマテリアルの環境光が明るさのほとんどなので、環境光だけ上げる(拡散は血殺のフォグが使う)
+		//列車はマテリアルの環境光が明るさのほとんどなので、環境光だけ上げる
 		MV1SetAmbColorScale(m_stageViewHandle, GetColorF(kTrainColorScale, kTrainColorScale, kTrainColorScale, 1.0f));
 	}
 	// モデルのポリゴンの当たり判定を構築する(第二引数を-1にすると全てのポリゴンを対象にする)
@@ -150,8 +152,8 @@ void Stage::Draw() const
 {
 	//MV1DrawModel(m_stageModelHandle);
 
-	//列車ステージは遠くを暗くする(血殺のフォグがかかっているときはそちらを使う)
-	const bool useTrainFog = m_tunnelHandle != -1 && !GetFogEnable();
+	//列車ステージは遠くを暗くする
+	const bool useTrainFog = m_tunnelHandle != -1;
 	if (useTrainFog)
 	{
 		SetFogEnable(TRUE);
@@ -159,7 +161,7 @@ void Stage::Draw() const
 		SetFogColor(kTrainFogColor, kTrainFogColor, kTrainFogColor);
 		SetFogStartEnd(kTrainFogStart, kTrainFogEnd);
 	}
-	const bool useNightFog = m_useNightFog && !GetFogEnable();
+	const bool useNightFog = m_useNightFog;
 	if (useNightFog)
 	{
 		SetFogEnable(TRUE);
@@ -176,6 +178,8 @@ void Stage::Draw() const
 	//キャラやエフェクトにはかけない
 	if (useTrainFog || useNightFog)
 	{
+		//自作の頂点シェーダーはフォグを切っても距離の値を読むので、遠くへ送ってから切る
+		SetFogStartEnd(kFogOffStart, kFogOffEnd);
 		SetFogEnable(FALSE);
 	}
 }
@@ -194,7 +198,7 @@ void Stage::DrawTunnel() const
 	{
 		const float z = m_pos_graphic.z + i * kTunnelLength + m_tunnelScroll;
 		MV1SetPosition(m_tunnelHandle, VGet(m_pos_graphic.x, m_pos_graphic.y + kTunnelOffsetY, z));
-		MV1DrawModel(m_tunnelHandle);
+		ModelShaderManager::GetInstance().DrawModel(m_tunnelHandle);
 	}
 }
 

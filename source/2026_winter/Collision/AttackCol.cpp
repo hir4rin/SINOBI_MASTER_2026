@@ -26,12 +26,8 @@ namespace
 
 	constexpr float kEfOffset = 80.0f;//エフェクトの座標のオフセット
 
-	constexpr int kUltStartFrame = 120;//必殺技の演出の開始フレーム数
+	constexpr int kUltStartFrame = 80;//必殺技の演出の開始フレーム数
 	constexpr float kUltTimeScaleRate = 0.1f;//必殺技演出中の時間スケール
-
-	constexpr int kSkillKessatuFrame = 60;//スキル血殺の演出の長さ(タイムスケールを掛けて減る)
-	constexpr int kSkillKessatuSlowFrame = 60;//スキル血殺のスローの長さ(実フレーム)
-	constexpr float kSkillKessatuTimeScaleRate = 0.1f;//スキル血殺中の時間スケール
 
 	constexpr int kSkillGaugeGainPerHit = 20;//攻撃ヒット時のスキルゲージ上昇量
 	constexpr int kUltGaugeGainPerHitNormal = 10;//通常時の攻撃ヒット時の必殺技ゲージ上昇量
@@ -158,7 +154,7 @@ void AttackCol::PlayerAttackOnCollision(Collider& other)
 				}
 
 				//attackDataの変更//現在経過時間を引いて、敵の移動距離、時間を決める
-				float nowAnimFrame = player->GetAnimation().GetNowAnimFrame();
+				float nowAnimFrame = player->GetAttackFrame();
 				m_attackData->knockBackFrame -= nowAnimFrame;
 				//ダメージの受け渡し
 				hitCol->OnDamageInterFace(*this, *m_attackData);
@@ -216,16 +212,19 @@ void AttackCol::PlayerAttackOnCollision(Collider& other)
 					//スキルと必殺の血殺を分ける
 					if (isUltimating)
 					{
-						System::GetInstance().GetBattleMgr()->SetUltStart(kSkillKessatuFrame);//スキル血殺の演出をスタートする
-						if (!isLastHitEvent)
+						//スキル1・2は終わりに発動//スキル3の着地はすぐ
+						if (m_attackData->attackType != AttackType::ImpactSkillAttack)
 						{
-							System::GetInstance().SetTimeScaleForFrames(kSkillKessatuTimeScaleRate, kSkillKessatuSlowFrame);//時間を遅くする//60フレームで元に戻す
-							cameraManager->ChangeStateFromScene(CameraManager::CameraStateName::SkillKessatuCamera);
+							player->ReserveKessatsu(other.GetWorldPos());
+						}
+						else
+						{
+							player->StartSkillKessatsu(other.GetWorldPos());
 						}
 					}
 					else
 					{
-						System::GetInstance().GetBattleMgr()->SetUltStart(kUltStartFrame);//必殺技の演出をスタートする
+						System::GetInstance().GetBattleMgr()->SetUltStart(kUltStartFrame, other.GetWorldPos());//必殺技の演出をスタートする
 						if (!isLastHitEvent)
 						{
 							System::GetInstance().SetTimeScaleForFrames(kUltTimeScaleRate, kUltStartFrame);//時間を遅くする//60フレームで元に戻す

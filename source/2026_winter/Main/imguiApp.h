@@ -15,6 +15,7 @@ struct CameraKeyframe
 {
 	Vector3 pos;
 	Vector3 target;
+	float fov = CameraStateBase::kDefaultFov;//視野角(ラジアン)
 	CameraStateBase::BlendSetting blendSetting;//このキーフレームから次のキーフレームへ遷移する際のブレンド設定
 };
 
@@ -55,6 +56,9 @@ public:
 	void NewFrame();
 	//ImGuiのウィンドウを組み立て終わった後、ScreenFlipの前に呼ぶ。「組み立てた内容を実際に画面に描いて」という合図
 	void Render();
+	//ゲームのウィンドウの外に出したImGuiのウィンドウを描く。ScreenFlip の後に呼ぶ
+	//(前に呼ぶと、外のウィンドウの Present に引っぱられてゲームの ScreenFlip が数ms遅くなるため)
+	void RenderPlatformWindows();
 
 	//デバッグ用ウィンドウ(Camera Debug/Camera Animator)を表示するかどうかを切り替える(F2キーに割り当てる想定)
 	//Releaseビルドでもこのフラグをtrueにすればデバッグウィンドウを使える
@@ -81,7 +85,8 @@ public:
 	/// Position/Target/Blend Mode/Duration/Easing Power/Slerp Pivotをまとめて編集できる
 	/// (Camera Animator側のリストが長くなると窮屈だったので、詳細編集はこちらのウィンドウに分けている)
 	/// </summary>
-	void DrawCameraKeyframeEditorWindow();
+	/// <param name="playerPos">プレイヤーの座標(Slerp Pivotに入れる用)</param>
+	void DrawCameraKeyframeEditorWindow(const Vector3& playerPos);
 
 	//カメラ上書きが有効かどうかを返す(ウィンドウ内の"Override Camera"チェックボックスの状態そのもの)
 	bool IsCameraOverrideEnabled()const { return m_overrideCamera; }
@@ -91,6 +96,7 @@ public:
 	const Vector3& GetOverrideCameraTarget()const { return m_camTarget; }
 	//上書き・フォトモード用の視野角を返す(ラジアン)
 	float GetOverrideCameraFov()const { return m_camFovDeg * (DX_PI_F / 180.0f); }
+	void SetOverrideCameraFov(float fov) { m_camFovDeg = fov * (180.0f / DX_PI_F); }
 
 	//カメラアニメーターが再生中かどうかを返す("Execute"ボタンを押してから再生が終わるまでtrue)
 	bool IsCameraAnimatorPlaying()const { return m_isAnimatorPlaying; }
@@ -98,6 +104,8 @@ public:
 	const Vector3& GetAnimatorCameraPos()const { return m_animatorCamPos; }
 	//再生中の補間結果の注視点を返す(同上)
 	const Vector3& GetAnimatorCameraTarget()const { return m_animatorCamTarget; }
+	//再生中の補間結果の視野角を返す(ラジアン)
+	float GetAnimatorCameraFov()const { return m_animatorCamFov; }
 
 	//Shift-JISの文字列(CSVの名前・ソースの日本語)をImGuiで出せるUTF-8に直す
 	static std::string ToUtf8(const std::string& sjis);
@@ -113,6 +121,10 @@ private:
 	//座標(m_camPos)と注視点(m_camTarget)から、角度・距離を逆算する(↑の計算の逆)
 	//「今のカメラは注視点から見て何度・どれくらいの距離にあるか」を求める処理
 	void RecalcAngleDistanceFromPos();
+
+	//「Frame Time」以外のウィンドウを、ゲームのウィンドウからはみ出さない位置・大きさに直す
+	//(はみ出すと ImGui が自動で外のウィンドウにして、その Present でカクつくため)
+	void KeepWindowsInsideGame();
 
 	//カメラアニメーターの再生を1フレーム分進める(再生中でなければ何もしない)
 	//DrawCameraAnimatorWindow()の中で毎フレーム呼ばれる
@@ -144,8 +156,10 @@ private:
 	int m_selectedKeyframeIndex = -1;//Camera Keyframe Editorで今編集対象になっているキーフレームのindex(-1なら未選択)
 
 	bool m_isAnimatorPlaying = false;//"Execute"を押してから再生が終わるまでtrue
+	bool m_isAnimatorChaseArrived = false;//isChaseの区間で、目標に追いついたらtrue
 	int m_animatorSegmentIndex = 0;//今補間している区間(m_cameraKeyframes[index]→[index+1])
 	float m_animatorSegmentElapsed = 0.0f;//今の区間に入ってからの経過フレーム数(CameraStateBaseのm_blendElapsedと同じ考え方)
 	Vector3 m_animatorCamPos;//再生中の補間結果のカメラ座標(GetAnimatorCameraPosで返す値)
 	Vector3 m_animatorCamTarget;//再生中の補間結果の注視点(GetAnimatorCameraTargetで返す値)
+	float m_animatorCamFov = CameraStateBase::kDefaultFov;//再生中の補間結果の視野角(GetAnimatorCameraFovで返す値)
 };

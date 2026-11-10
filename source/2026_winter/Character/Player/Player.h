@@ -24,9 +24,12 @@
 #include "Character/Player/State/Locomotion/PlayerStateWallStay.h"//以下同文
 #include "Character/Player/State/Locomotion/PlayerStateWallRunKick.h"//以下同文
 #include "Character/Player/State/Defence/PlayerAttackParried.h"//以下同文
+#include "Character/Player/State/Defence/PlayerHitKirimomiState.h"//以下同文
+#include "Character/Player/State/Defence/PlayerHitAirState.h"//以下同文
 #include "Character/Player/State/Attack/PlayerStateGuardBreakChance.h"//以下同文
 #include "Character/Player/State/Attack/PlayerStateGuardBreakAttack.h"//以下同文
 #include "Character/Player/State/Attack/PlayerStateBossPartThrow.h"//以下同文
+#include "Character/Player/State/Attack/PlayerStateBossFinisher.h"//以下同文
 #include "DataLoader/AnimData.h"
 #include "Render/CharacterLook.h"
 #include <memory>
@@ -195,6 +198,7 @@ public:
 	void OnDamage(Collider& other, AttackData& data) override;
 	void OnJustDodge(Collider& other, AttackData& data);//ジャスト回避判定に敵の攻撃が当たった時の処理//現在の状態に通知する
 	void OnParried();//攻撃を敵に弾かれたときの処理//ひるませる
+	Vector3 CalcKnockBackDir(Collider& other);//攻撃者→プレイヤーの水平の向き
 
 	void OnAttackHit(int otherId);//攻撃が当たった時の処理
 
@@ -234,11 +238,11 @@ public:
 	bool IsMoveState()const;//Move,FastRunのときtrue
 
 	//暗殺
-
 	void SetAssasinTarget(std::shared_ptr<EnemyBase> target) { m_assasinTarget = target; }
 	void ClearAssasinTarget() { m_assasinTarget.reset(); }
 	std::shared_ptr<EnemyBase> GetAssasinTarget()const;//死んでいたらnullptrを返す
 	const bool CanAssasin()const;
+	bool CanInputAssasinState()const;//Yで暗殺に入れるステートのときtrue
 	//暗殺演出中かどうか//演出中は暗殺対象を固定する
 	void SetIsAssasinating(bool value) { m_isAssasinating = value; }
 	bool GetIsAssasinating()const { return m_isAssasinating; }
@@ -248,6 +252,7 @@ public:
 	void ClearPartBrokenTarget() { m_partBrokenTarget.reset(); }
 	std::shared_ptr<EnemyBase> GetPartBrokenTarget()const;//死んでいたらnullptrを返す
 	const bool CanPartBrokenFinish()const;
+	bool CanInputPartBrokenState()const;//Yで確殺に入れるステートのときtrue
 	//プレイヤーの向いている方向
 	Vector3 GetTargetVec()const { return m_targetVec; }
 	//確殺演出中かどうか//演出中は確殺対象を固定する
@@ -260,10 +265,23 @@ public:
 
 	//ブレイクの通知
 	void RequestGuardBreakChance(std::shared_ptr<EnemyBase> target) { m_guardBreakChanceTarget = target; }
+	std::shared_ptr<PlayerStateGuardBreakChance> GetGuardBreakChanceState()const { return std::dynamic_pointer_cast<PlayerStateGuardBreakChance>(m_currentState); }
+	bool IsGuardBreakAttacking()const { return std::dynamic_pointer_cast<PlayerStateGuardBreakAttack>(m_currentState) != nullptr; }
 	//ボスのパーツを切り落とした通知//切り上げの後にPlayerStateBossPartThrowへ
 	void RequestBossPartThrow(std::shared_ptr<EnemyBase> target) { m_bossPartThrowTarget = target; }
+	//ボスのトドメのムービーの通知//次のUpdateでPlayerStateBossFinisherへ
+	void RequestBossFinisher(std::shared_ptr<EnemyBase> target) { m_bossFinisherTarget = target; }
+	std::shared_ptr<PlayerStateBossFinisher> GetBossFinisherState()const { return std::dynamic_pointer_cast<PlayerStateBossFinisher>(m_currentState); }
 	//必殺技状態中かどうか
 	bool GetIsUltimating() { return m_isUltimating; }
+
+	//今の攻撃のフレーム//スキル攻撃用
+	float GetAttackFrame();
+	void ReserveKessatsu(const Vector3& pos) { m_isKessatsuReserved = true; m_kessatsuPos = pos; }
+	void ClearKessatsuReserve() { m_isKessatsuReserved = false; }
+	bool IsKessatsuReserved()const { return m_isKessatsuReserved; }
+	const Vector3& GetKessatsuPos()const { return m_kessatsuPos; }
+	void StartSkillKessatsu(const Vector3& pos);
 
 
 	//内部ロックオンのために
@@ -283,6 +301,8 @@ public:
 	//色変え
 	void SetResultUp();
 	void ChangeResultMove();
+
+	
 
 private:
 	/// <summary>
@@ -335,6 +355,8 @@ private:
 
 	bool m_isUltimating = false;//必殺技状態かどうか
 	bool m_isSkillInvisible = false;//スキル攻撃中にモデル(本体・羽・武器)を描画しないか//代わりにエフェクトを出す
+	bool m_isKessatsuReserved = false;//スキルの終わりに血殺する
+	Vector3 m_kessatsuPos = {};//血殺の位置
 	bool m_isCameraFocusOverride = false;//カメラの注視点のYを敵の高さで上書きするか//打ち上げ(スキル0)が当たってからスキル1の間だけtrue
 	std::weak_ptr<EnemyBase> m_cameraFocusEnemy;//上書き中にカメラが高さを合わせる敵(打ち上げた敵)
 	bool m_isTitleMode = false;//タイトル画面かどうか//trueの場合、移動方向をカメラ基準ではなく固定軸にする
@@ -380,6 +402,7 @@ private:
 	float m_attackRiseScale = 1.0f;//攻撃の上昇の倍率
 	std::weak_ptr<EnemyBase> m_guardBreakChanceTarget;//ブレイクした敵
 	std::weak_ptr<EnemyBase> m_bossPartThrowTarget;//パーツを切り落としたボス
+	std::weak_ptr<EnemyBase> m_bossFinisherTarget;//トドメのムービーのボス
 
 	//壁走り、壁キック用
 	//当たった壁との情報//壁走りの開始位置の判定に使う
@@ -413,9 +436,12 @@ private:
 	friend class PlayerStateWallStay;
 	friend class PlayerStateWallRunKick;
 	friend class PlayerAttackParried;
+	friend class PlayerHitKirimomiState;
+	friend class PlayerHitAirState;
 	friend class PlayerStateGuardBreakChance;
 	friend class PlayerStateGuardBreakAttack;
 	friend class PlayerStateBossPartThrow;
+	friend class PlayerStateBossFinisher;
 	//武器
 	friend class PlayerWeapon;
 

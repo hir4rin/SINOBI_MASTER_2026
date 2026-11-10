@@ -1,5 +1,6 @@
 ﻿#include "imguiApp.h"
 #include "imgui.h"
+#include "imgui_internal.h"
 #include "backends/imgui_impl_win32.h"
 #include "backends/imgui_impl_dx11.h"
 #include <d3d11.h>
@@ -59,9 +60,14 @@ namespace
 	constexpr float kChaseRateMin = 0.01f;//追いかけ率の最小値
 	constexpr float kChaseRateMax = 1.0f;//追いかけ率の最大値(1.0だと追いかけずにイージングの点そのまま)
 
+	constexpr float kFovDurationSameAsPos = -1.0f;//視野角の遷移フレーム数の最小値。負の値は位置のDurationと同じ
+
 	const char* const kJapaneseFontPath = "C:\\Windows\\Fonts\\meiryo.ttc";//日本語を出すためのフォント
 	constexpr float kJapaneseFontSize = 15.0f;
 	constexpr UINT kShiftJisCodePage = 932;
+
+	const char* const kOutsideWindowName = "Frame Time";//ゲームのウィンドウの外に出してよいウィンドウ
+	constexpr float kInsideMargin = 4.0f;//ほかのウィンドウをゲームのウィンドウの端から離す距離
 }
 
 //ImGuiを使えるようにする初期化処理。ここで「ImGuiの入れ物を作る」→「入力と描画の係(バックエンド)を登録する」→
@@ -75,8 +81,10 @@ void imguiApp::Init(HWND hwnd, ID3D11Device* device, ID3D11DeviceContext* contex
 	ImGuiIO& io = ImGui::GetIO();//入出力まわりの設定を取得する
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;//キーボードだけでもImGuiのUIを操作できるようにする設定
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;//ウィンドウ同士をくっつけられるようにする(docking版の機能)
-	//ゲームのウィンドウの外に出す機能(ViewportsEnable)は最初は切る(外のウィンドウを出す Present がたまに1フレーム近く止まってカクつくため)
-	//F2 の「Frame Time」の「ImGui windows outside」で入れられる
+	//ゲームのウィンドウの外に出す機能。F2 の「Frame Time」だけ最初から外に出す(FrameProfiler::SetupWindowPlacement)
+	//ほかのウィンドウはドラッグしない限り中のまま。外のウィンドウを出す Present がたまに止まってカクつくことがあるので、「Frame Time」の「Outside game window」で切れる
+	//(ImGui の決まりで、最初の NewFrame より前に入れておく)
+	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
 	ImGui::StyleColorsDark();//見た目のテーマをダーク(黒っぽい配色)にする
 
@@ -125,6 +133,61 @@ void imguiApp::NewFrame()
 	ImGui_ImplDX11_NewFrame();//描画側の1フレーム分の準備
 	ImGui_ImplWin32_NewFrame();//入力側の1フレーム分の準備(マウス座標などの更新)
 	ImGui::NewFrame();//ImGui本体に「新しいフレームが始まった」と伝える
+	if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) KeepWindowsInsideGame();
+}
+
+void imguiApp::KeepWindowsInsideGame()
+{
+	ImGuiContext& g = *ImGui::GetCurrentContext();
+	const ImGuiViewport* mainViewport = ImGui::GetMainViewport();
+	const ImVec2 areaMin(mainViewport->Pos.x + kInsideMargin, mainViewport->Pos.y + kInsideMargin);
+	const ImVec2 areaMax(mainViewport->Pos.x + mainViewport->Size.x - kInsideMargin, mainViewport->Pos.y + mainViewport->Size.y - kInsideMargin);
+	if (areaMax.x <= areaMin.x || areaMax.y <= areaMin.y) return;//最小化中など
+
+	//はみ出さない位置と大きさにする。変わったら true
+	auto fit = [&](ImVec2& pos, ImVec2& size)
+		{
+			const ImVec2 newSize((std::min)(size.x, areaMax.x - areaMin.x), (std::min)(size.y, areaMax.y - areaMin.y));
+			const ImVec2 newPos((std::clamp)(pos.x, areaMin.x, areaMax.x - newSize.x), (std::clamp)(pos.y, areaMin.y, areaMax.y - newSize.y));
+			const bool isChanged = newPos.x != pos.x || newPos.y != pos.y || newSize.x != size.x || newSize.y != size.y;
+			pos = newPos;
+			size = newSize;
+			return isChanged;
+		};
+	//外に出すウィンドウと、ドラッグ中のウィンドウはそのまま
+	ImGuiWindow* outsideWindow = ImGui::FindWindowByName(kOutsideWindowName);
+	ImGuiDockNode* outsideNode = (outsideWindow && outsideWindow->DockNode) ? ImGui::DockNodeGetRootNode(outsideWindow->DockNode) : nullptr;
+	ImGuiWindow* movingWindow = g.MovingWindow ? g.MovingWindow->RootWindowDockTree : nullptr;
+
+	//ドッキングしたウィンドウのまとまり(一番上のノード)
+	for (int i = 0; i < g.DockContext.Nodes.Data.Size; ++i)
+	{
+		auto* node = static_cast<ImGuiDockNode*>(g.DockContext.Nodes.Data[i].val_p);
+		if (!node || !node->IsFloatingNode() || node == outsideNode) continue;
+		if (node->HostWindow && node->HostWindow == movingWindow) continue;
+		ImVec2 pos = node->Pos;
+		ImVec2 size = node->Size;
+		if (!fit(pos, size)) continue;
+		node->Pos = pos;
+		node->Size = size;
+		if (node->HostWindow)
+		{
+			ImGui::SetWindowPos(node->HostWindow, pos);
+			ImGui::SetWindowSize(node->HostWindow, size);
+		}
+	}
+	//ドッキングしていないウィンドウ
+	for (ImGuiWindow* window : g.Windows)
+	{
+		if (window->Flags & (ImGuiWindowFlags_ChildWindow | ImGuiWindowFlags_Popup | ImGuiWindowFlags_Tooltip | ImGuiWindowFlags_DockNodeHost)) continue;
+		if (window->DockNode || window->DockNodeAsHost || window->IsFallbackWindow) continue;
+		if (window == outsideWindow || window == movingWindow) continue;
+		ImVec2 pos = window->Pos;
+		ImVec2 size = window->SizeFull;
+		if (!fit(pos, size)) continue;
+		ImGui::SetWindowPos(window, pos);
+		ImGui::SetWindowSize(window, size);
+	}
 }
 
 //組み立てたImGuiのウィンドウを、実際に画面に描画する関数
@@ -135,7 +198,11 @@ void imguiApp::Render()
 
 	ImGui::Render();//ここまでに組み立てたUIを、描画用のデータ(頂点情報)に変換する
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());//その頂点情報を実際にDirectX11でGPUに描かせる
+}
 
+void imguiApp::RenderPlatformWindows()
+{
+	if (!m_initialized)return;
 	//ゲームのウィンドウの外に出したImGuiのウィンドウを描く
 	if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 	{
@@ -182,6 +249,7 @@ void imguiApp::DrawCameraDebugWindow(const Vector3& currentPos, const Vector3& c
 	{
 		m_camPos = currentPos;
 		m_camTarget = currentTarget;
+		m_camFovDeg = GetCameraFov() * kRadToDeg;
 		RecalcAngleDistanceFromPos();//座標を書き換えたので、角度・距離の表示もそれに合わせて計算し直す
 	}
 
@@ -255,6 +323,7 @@ void imguiApp::DrawCameraAnimatorWindow(const Vector3& currentPos, const Vector3
 		CameraKeyframe keyframe;
 		keyframe.pos = currentPos;
 		keyframe.target = currentTarget;
+		keyframe.fov = GetOverrideCameraFov();
 		keyframe.blendSetting.mode = kDefaultBlendMode;
 		keyframe.blendSetting.duration = kDefaultBlendDurationFrames;
 		keyframe.blendSetting.easingPower = kDefaultEasingPower;
@@ -271,10 +340,12 @@ void imguiApp::DrawCameraAnimatorWindow(const Vector3& currentPos, const Vector3
 		m_isAnimatorPlaying = true;
 		m_animatorSegmentIndex = 0;
 		m_animatorSegmentElapsed = 0.0f;
+		m_isAnimatorChaseArrived = false;
 		//再生開始した瞬間、次のフレームまで補間結果が更新されないと1フレームだけ(0,0,0)へ飛んでしまうので、
 		//ここで先頭のキーフレームの値を入れておく
 		m_animatorCamPos = m_cameraKeyframes[0].pos;
 		m_animatorCamTarget = m_cameraKeyframes[0].target;
+		m_animatorCamFov = m_cameraKeyframes[0].fov;
 	}
 	if (!canPlay)ImGui::EndDisabled();
 
@@ -299,7 +370,7 @@ void imguiApp::DrawCameraAnimatorWindow(const Vector3& currentPos, const Vector3
 		ImGui::PushID(i);
 
 		const CameraKeyframe& keyframe = m_cameraKeyframes[i];
-		ImGui::Text("Keyframe %d : Pos(%.1f, %.1f, %.1f)", i, keyframe.pos.x, keyframe.pos.y, keyframe.pos.z);
+		ImGui::Text("Keyframe %d : Pos(%.1f, %.1f, %.1f) FOV %.1f", i, keyframe.pos.x, keyframe.pos.y, keyframe.pos.z, keyframe.fov * kRadToDeg);
 
 		ImGui::SameLine();
 		const bool isSelected = (m_selectedKeyframeIndex == i);
@@ -341,7 +412,7 @@ void imguiApp::DrawCameraAnimatorWindow(const Vector3& currentPos, const Vector3
 }
 
 //Camera Animatorで選択中のキーフレーム1個の詳細(Position/Target/Blend Setting)を編集するウィンドウ
-void imguiApp::DrawCameraKeyframeEditorWindow()
+void imguiApp::DrawCameraKeyframeEditorWindow(const Vector3& playerPos)
 {
 	if (!m_initialized)return;
 	if (!m_isDebugUIVisible)return;//F2で非表示にされている間は、ウィンドウを組み立てない
@@ -365,9 +436,29 @@ void imguiApp::DrawCameraKeyframeEditorWindow()
 
 	ImGui::DragFloat3("Position", &keyframe.pos.x, kPosDragSpeed);
 	ImGui::DragFloat3("Target", &keyframe.target.x, kPosDragSpeed);
+	float fovDeg = keyframe.fov * kRadToDeg;
+	if (ImGui::DragFloat("FOV (deg)", &fovDeg, kFovDragSpeed, kFovDegMin, kFovDegMax))
+	{
+		keyframe.fov = fovDeg * kDegToRad;
+	}
 
 	ImGui::Separator();
-	ImGui::Text("Blend Setting (-> Keyframe %d)", m_selectedKeyframeIndex + 1);
+	//最後のキーフレームには次が無いので、ブレンド設定は使われない
+	if (m_selectedKeyframeIndex + 1 < static_cast<int>(m_cameraKeyframes.size()))
+	{
+		ImGui::Text("Blend Setting (-> Keyframe %d)", m_selectedKeyframeIndex + 1);
+	}
+	else
+	{
+		ImGui::TextUnformatted("Blend Setting (last keyframe: unused)");
+	}
+
+	//EaseOutBack/EaseOutExpoはpowerを使わない(Easing.h)
+	auto usesEasingPower = [](EasingMode mode)
+		{
+			return mode != EasingMode::EaseOutBack && mode != EasingMode::EaseOutExpo;
+		};
+
 	int modeIndex = static_cast<int>(keyframe.blendSetting.mode);
 	if (ImGui::Combo("Blend Mode", &modeIndex, kBlendModeItems, kBlendModeItemCount))
 	{
@@ -379,7 +470,10 @@ void imguiApp::DrawCameraKeyframeEditorWindow()
 	{
 		keyframe.blendSetting.easingMode = static_cast<EasingMode>(easingIndex);
 	}
+	const bool usesPower = usesEasingPower(keyframe.blendSetting.easingMode);
+	if (!usesPower)ImGui::BeginDisabled();
 	ImGui::DragFloat("Easing Power", &keyframe.blendSetting.easingPower, kEasingPowerDragSpeed, kEasingPowerMin, kEasingPowerMax);
+	if (!usesPower)ImGui::EndDisabled();
 	//Chase:イージングの点を追いかけて、最後はたどり着かずに追い続ける
 	ImGui::Checkbox("Chase", &keyframe.blendSetting.isChase);
 	if (keyframe.blendSetting.isChase)
@@ -390,12 +484,28 @@ void imguiApp::DrawCameraKeyframeEditorWindow()
 	if (keyframe.blendSetting.mode == BlendMode::Slerp)
 	{
 		ImGui::DragFloat3("Slerp Pivot", &keyframe.blendSetting.pivot.x, kPosDragSpeed);
+		//ゲームのカメラのSlerpはプレイヤー中心なので、同じ位置を入れられるようにする
+		if (ImGui::Button("Pivot = Player"))
+		{
+			keyframe.blendSetting.pivot = playerPos;
+		}
 		int orbitDirIndex = static_cast<int>(keyframe.blendSetting.orbitDirection);
 		if (ImGui::Combo("Orbit Direction", &orbitDirIndex, kOrbitDirectionItems, kOrbitDirectionItemCount))
 		{
 			keyframe.blendSetting.orbitDirection = static_cast<OrbitDirection>(orbitDirIndex);
 		}
 	}
+	//視野角は位置とは別のイージング(CameraStateBase::UpdateBlendと同じ)
+	int fovEasingIndex = static_cast<int>(keyframe.blendSetting.fovEasingMode);
+	if (ImGui::Combo("FOV Easing Mode", &fovEasingIndex, kEasingModeItems, kEasingModeItemCount))
+	{
+		keyframe.blendSetting.fovEasingMode = static_cast<EasingMode>(fovEasingIndex);
+	}
+	const bool usesFovPower = usesEasingPower(keyframe.blendSetting.fovEasingMode);
+	if (!usesFovPower)ImGui::BeginDisabled();
+	ImGui::DragFloat("FOV Easing Power", &keyframe.blendSetting.fovEasingPower, kEasingPowerDragSpeed, kEasingPowerMin, kEasingPowerMax);
+	if (!usesFovPower)ImGui::EndDisabled();
+	ImGui::DragFloat("FOV Duration (-1 = Duration)", &keyframe.blendSetting.fovDuration, kBlendDurationDragSpeed, kFovDurationSameAsPos, kBlendDurationMax);
 
 	ImGui::End();
 	ImGui::PopStyleVar();
@@ -418,21 +528,31 @@ void imguiApp::UpdateCameraAnimatorPlayback()
 
 	m_animatorSegmentElapsed += 1.0f;//1フレーム分進める(CameraStateBase::UpdateBlendのm_blendElapsedと同じ数え方)
 
+	//区間の長さ//視野角のほうが長いときは視野角に合わせる(CameraStateBase::IsBlendingと同じ)
+	auto segmentLength = [](const CameraStateBase::BlendSetting& setting)
+		{
+			return (std::max)(setting.duration, setting.GetFovDuration());
+		};
+
 	//今の区間のdurationを使い切っていたら(duration<=0のときは即座に)、経過分を持ち越しながら次の区間へ進む
 	while (m_isAnimatorPlaying)
 	{
-		float duration = m_cameraKeyframes[m_animatorSegmentIndex].blendSetting.duration;
+		const CameraStateBase::BlendSetting& segment = m_cameraKeyframes[m_animatorSegmentIndex].blendSetting;
+		float duration = segmentLength(segment);
 
 		if (m_animatorSegmentElapsed < duration)break;//まだ今の区間の途中
+		if (segment.isChase && !m_isAnimatorChaseArrived)break;//isChaseは追いつくまで今の区間のまま(CameraStateBase::IsBlendingと同じ)
 
-		m_animatorSegmentElapsed -= duration;
+		//isChaseは追いつくまでの待ち時間を次の区間に持ち越さない
+		m_animatorSegmentElapsed = segment.isChase ? 0.0f : m_animatorSegmentElapsed - duration;
+		m_isAnimatorChaseArrived = false;
 		++m_animatorSegmentIndex;
 
 		//最後のキーフレームまで着いたら、そこで再生終了(区間・経過時間は最後の区間の終端に固定する)
 		if (m_animatorSegmentIndex >= static_cast<int>(m_cameraKeyframes.size()) - 1)
 		{
 			m_animatorSegmentIndex = static_cast<int>(m_cameraKeyframes.size()) - 2;
-			m_animatorSegmentElapsed = m_cameraKeyframes[m_animatorSegmentIndex].blendSetting.duration;
+			m_animatorSegmentElapsed = segmentLength(m_cameraKeyframes[m_animatorSegmentIndex].blendSetting);
 			m_isAnimatorPlaying = false;
 		}
 	}
@@ -483,9 +603,32 @@ void imguiApp::UpdateCameraAnimatorPlayback()
 		break;
 	}
 
+	//視野角は位置とは別のイージング(カット切り替えのときはすぐに目標値にする。CameraStateBase::UpdateBlendと同じ)
+	if (blend.mode == BlendMode::None)
+	{
+		m_animatorCamFov = to.fov;
+	}
+	else
+	{
+		float fovDuration = blend.GetFovDuration();
+		float tFov = (fovDuration > 0.0f) ? std::clamp(m_animatorSegmentElapsed / fovDuration, 0.0f, 1.0f) : 1.0f;
+		tFov = Easing::Apply(blend.fovEasingMode, tFov, blend.fovEasingPower);
+		m_animatorCamFov = std::lerp(from.fov, to.fov, tFov);
+	}
+
 	if (blend.isChase)
 	{
 		CameraStateBase::ChaseStep(m_animatorCamPos, m_animatorCamTarget, easedPos, easedTarget, blend);
+
+		//イージングが終わった後、目標にほぼ重なったらそこで終了(CameraStateBase::UpdateBlendと同じ)
+		if (m_animatorSegmentElapsed >= blend.duration &&
+			(to.pos - m_animatorCamPos).Magnitude() < CameraStateBase::kChaseArriveDistance &&
+			(to.target - m_animatorCamTarget).Magnitude() < CameraStateBase::kChaseArriveDistance)
+		{
+			m_animatorCamPos = to.pos;
+			m_animatorCamTarget = to.target;
+			m_isAnimatorChaseArrived = true;
+		}
 	}
 	else
 	{
@@ -503,7 +646,8 @@ void imguiApp::RecalcPosFromAngleDistance()
 	float radV = m_angleVDeg * kDegToRad;
 
 	//「注視点から見てこの角度・距離の場所」までのずれ(オフセット)ベクトルを求める
-	float x = m_distance * sinf(radH) * cosf(radV);
+	//Angle Hはカメラ→注視点の向きで、ゲームのm_angleHと同じ
+	float x = -m_distance * sinf(radH) * cosf(radV);
 	float y = m_distance * sinf(radV);
 	float z = -m_distance * cosf(radH) * cosf(radV);
 
@@ -520,7 +664,7 @@ void imguiApp::RecalcAngleDistanceFromPos()
 
 	//asinf/atan2fで、ベクトルの向きから角度(ラジアン)を求め、kRadToDegを掛けて度に変換している
 	m_angleVDeg = asinf(std::clamp(diff.y / m_distance, -1.0f, 1.0f)) * kRadToDeg;
-	m_angleHDeg = atan2f(diff.x, -diff.z) * kRadToDeg;
+	m_angleHDeg = atan2f(-diff.x, -diff.z) * kRadToDeg;
 }
 
 //Shift-JIS→(ワイド文字)→UTF-8の順に変換する

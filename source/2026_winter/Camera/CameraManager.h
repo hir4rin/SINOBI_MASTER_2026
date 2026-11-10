@@ -38,7 +38,9 @@ public:
 		SkillKessatuCamera,
 		AirAssasinCamera,
 		AirAssasinCameraStart,
-		BattleSmoothCamera
+		BattleSmoothCamera,
+		BossPartThrowCamera,
+		BossFinisherCamera
 
 	};
 
@@ -95,12 +97,16 @@ public:
 	//プレイヤーの攻撃がヒットしたとき//PlayerCamera中だけBattleSmoothCameraに遷移する
 	void OnPlayerAttackHit();
 
+	//startからendへの線がステージに当たるか
+	bool IsStageHit(const Vector3& start, const Vector3& end) const;
+
 	//カクつきの切り分け用のスイッチ(F2 の「Camera Check」。シーンをまたいで残る)
 	struct CheckSwitch
 	{
 		bool isStageCollision = true;//ステージとの当たり判定で寄る
 		bool isShake = true;//カメラシェイク
 		bool isFovPunch = true;//FOVパンチ
+		bool isFovOffset = true;//FOVオフセット
 		bool isLog = true;//Log/CameraEvents.txt に書く
 	};
 	static CheckSwitch& Switch();

@@ -111,7 +111,10 @@
     <ClCompile Include="Stage\Phase\PhaseAreaEditor.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="Render\BloodKillFog.cpp">
+    <ClCompile Include="Render\BloodDecalManager.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\StageColorGrade.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Render\TempTopLight.cpp">
@@ -160,6 +163,12 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Character\Player\State\Defence\PlayerStateHit.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Character\Player\State\Defence\PlayerHitKirimomiState.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Character\Player\State\Defence\PlayerHitAirState.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Character\Player\State\Defence\PlayerAttackParried.cpp">
@@ -241,6 +250,30 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Camera\CameraState\BattleSmoothCamera.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera\CameraState\BossPartThrowCamera.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera\CameraState\BossFinisherCamera.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Character\Enemy\Kingmech\State\KingmechFinisher.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Character\Player\State\Attack\PlayerStateBossFinisher.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\FinisherUI.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\AssasinTargetUI.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\PartBrokenKillUI.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\GuardBreakChanceUI.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Camera\CameraState\SkillKessatuCamera.cpp">
@@ -611,7 +644,10 @@
     <ClInclude Include="Stage\WallZone\WallZoneEditor.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="Render\BloodKillFog.h">
+    <ClInclude Include="Render\BloodDecalManager.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\StageColorGrade.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Render\TempTopLight.h">
@@ -669,6 +705,12 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Character\Player\State\Defence\PlayerStateHit.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Character\Player\State\Defence\PlayerHitKirimomiState.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Character\Player\State\Defence\PlayerHitAirState.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Character\Player\State\Defence\PlayerAttackParried.h">
@@ -750,6 +792,30 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Camera\CameraState\BattleSmoothCamera.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera\CameraState\BossPartThrowCamera.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera\CameraState\BossFinisherCamera.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Character\Enemy\Kingmech\State\KingmechFinisher.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Character\Player\State\Attack\PlayerStateBossFinisher.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\FinisherUI.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\AssasinTargetUI.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\PartBrokenKillUI.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\GuardBreakChanceUI.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Camera\CameraState\SkillKessatuCamera.h">
@@ -1018,6 +1084,9 @@
     <None Include="Render\Shader\LitModelPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </None>
+    <None Include="Render\Shader\EnemyCutPS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </None>
     <None Include="Render\Shader\CharacterLookPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </None>
@@ -1034,4 +1103,4 @@
       <Filter>リソース ファイル</Filter>
     </None>
   </ItemGroup>
-</Project>
+</Project>

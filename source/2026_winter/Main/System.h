@@ -2,6 +2,7 @@
 #include <unordered_map>
 //#include "Sound/SoundManager.h"
 #include <memory>
+#include <source_location>
 #include <string>
 #include <vector>
 
@@ -69,10 +70,13 @@ enum class AsyncData : int
 	GhostSkill3ImpactEffect,//スキル3の着地の分身と閃光
 	BloodWingEffect,//必殺技状態の黒い片翼//必殺技状態の間プレイヤーの背中に追従させる
 	PlayerUltWeaponModel,//必殺技(PlayerStateUlt)中だけ持たせる刀身の長い刀	//敵が斬られたときの血しぶき(3パターンからランダムで再生する)
-	BloodSplashEffectA,//横(+Z)に噴き出す
-	BloodSplashEffectB,//真上に噴き上がる
-	BloodSplashEffectC,//横に低く扇状に広がる(液体多め)
-	BloodSplashEffectWhite,//必殺技中の白い血しぶき(パターンBの白い版//奥側に多く飛び散る)
+	BloodHitEffect,//通常ヒットの血(横へ飛んで弧を描く)
+	BloodHitEffectC,//低く左右に広がる扇形
+	BloodHitEffectD,//低く片側へ流れる
+	BloodAssassinEffect,//暗殺の血(2〜3回脈打つ)
+	BloodKillEffect,//確殺の血(長く噴き続ける)
+	BloodPartBreakEffect,//部位破壊の血(肩から噴いて滴り続ける)
+	BloodUltEffect,//血殺・トドメの白い血
 	Goal,
 };
 
@@ -98,18 +102,15 @@ public:
 	/// </summary>
 	void Terminate();
 
-	void SetTimeScale(float scale) { timeScale = scale; }
+	/// <summary>時間の流れを変える(変わったら、呼んだ場所を FrameProfiler に記録する)</summary>
+	void SetTimeScale(float scale, std::source_location location = std::source_location::current());
 	float GetTimeScale() const { return timeScale; }
 	/// <summary>
 	/// 時間の流れともとに戻るまでのフレーム数を設定する関数
 	/// </summary>
 	/// <param name="timescale">時間の流れ=通常時が1.0f</param>
 	/// <param name="frames">通常時に戻るまでのframe数</param>
-	void SetTimeScaleForFrames(float timescale, int frames)
-	{
-		timeScale = timescale;//時間のスケールを設定する
-		m_frameCount = frames;//フレームカウントを設定する
-	}
+	void SetTimeScaleForFrames(float timescale, int frames, std::source_location location = std::source_location::current());
 
 	/// <summary>
 	/// どのステージでも使うもの(プレイヤー・エフェクト)を非同期で読み込む(起動時に1回)
@@ -126,6 +127,7 @@ public:
 	void Update();
 	//バトルマネージャー
 	void SetBattleMgr(std::weak_ptr<BattleManager> mgr) { m_battleMgr = mgr; }
+	bool HasBattleMgr()const { return !m_battleMgr.expired(); }
 	std::shared_ptr<BattleManager> GetBattleMgr();
 
 	//SoundManager& GetSoundManager() { return m_soundManager; }

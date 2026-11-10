@@ -1,0 +1,90 @@
+frame 212 state None -> PlayerCamera
+frame 924 state PlayerCamera -> AirAssasinCameraStart
+frame 924 JUMP move 22 (prev 14, change 16) turn 2.9 (prev 0.6) | AirAssasinCameraStart snap 0 shake 0.0 punch 0.0 timescale 0.70
+frame 951 collision snap 409 -> 397 (raw 427)
+frame 951 JUMP move 227 (prev 20, change 218) turn 42.6 (prev 0.3) | AirAssasinCameraStart snap 12 shake 0.0 punch 0.0 timescale 0.70
+frame 952 JUMP move 89 (prev 227, change 161) turn 16.2 (prev 42.6) | AirAssasinCameraStart snap 0 shake 0.0 punch 0.0 timescale 0.70
+frame 953 JUMP move 15 (prev 89, change 88) turn 0.0 (prev 16.2) | AirAssasinCameraStart snap 0 shake 0.0 punch 0.0 timescale 0.70
+frame 989 state AirAssasinCameraStart -> AirAssasinCamera
+frame 1029 state AirAssasinCamera -> PlayerCamera
+frame 1049 JUMP move 38 (prev 4, change 34) turn 1.8 (prev 0.2) | PlayerCamera snap 0 shake 0.0 punch 0.0 timescale 1.00
+frame 1050 JUMP move 6 (prev 38, change 33) turn 0.6 (prev 1.8) | PlayerCamera snap 0 shake 0.0 punch 0.0 timescale 1.00
+frame 1053 shake power 2.5 time 5
+frame 1053 state PlayerCamera -> BattleSmoothCamera
+frame 1087 shake power 2.5 time 5
+frame 1122 shake power 2.5 time 5
+frame 1123 state BattleSmoothCamera -> PlayerCamera
+frame 1124 JUMP move 30 (prev 4, change 31) turn 2.7 (prev 0.3) | PlayerCamera snap 0 shake 2.5 punch 0.0 timescale 1.00
+frame 1167 shake power 2.5 time 5
+frame 1167 state PlayerCamera -> BattleSmoothCamera
+frame 1167 JUMP move 4 (prev 24, change 20) turn 0.2 (prev 0.8) | BattleSmoothCamera snap 0 shake 2.5 punch 0.0 timescale 1.00
+frame 1174 state BattleSmoothCamera -> PlayerCamera
+frame 1175 JUMP move 73 (prev 1, change 74) turn 3.6 (prev 0.0) | PlayerCamera snap 0 shake 0.0 punch 0.0 timescale 1.00
+frame 1176 JUMP move 31 (prev 73, change 43) turn 1.5 (prev 3.6) | PlayerCamera snap 0 shake 0.0 punch 0.0 timescale 1.00
+frame 1181 shake power 2.5 time 5
+frame 1181 fov punch -15.0 deg time 90 in 20
+frame 1181 state PlayerCamera -> BattleSmoothCamera
+frame 1181 state BattleSmoothCamera -> PlayerCamera
+frame 1182 JUMP move 36 (prev 2, change 37) turn 1.8 (prev 0.3) | PlayerCamera snap 0 shake 2.5 punch -1.5 timescale 1.00
+frame 1183 JUMP move 16 (prev 36, change 20) turn 0.9 (prev 1.8) | PlayerCamera snap 0 shake 2.5 punch -2.2 timescale 1.00
+frame 1201 shake power 2.5 time 5
+frame 1201 state PlayerCamera -> BattleSmoothCamera
+frame 1201 state BattleSmoothCamera -> PlayerCamera
+frame 1235 shake power 2.5 time 5
+frame 1235 state PlayerCamera -> BattleSmoothCamera
+frame 1235 state BattleSmoothCamera -> PlayerCamera
+frame 1259 shake power 2.5 time 5
+frame 1259 state PlayerCamera -> BattleSmoothCamera
+frame 1259 state BattleSmoothCamera -> PlayerCamera
+frame 1292 shake power 2.5 time 5
+frame 1292 state PlayerCamera -> BattleSmoothCamera
+frame 1292 shake power 2.5 time 5
+frame 1292 state BattleSmoothCamera -> PlayerCamera
+frame 1305 shake power 2.5 time 5
+frame 1305 state PlayerCamera -> BattleSmoothCamera
+frame 1305 state BattleSmoothCamera -> PlayerCamera
+frame 1305 JUMP move 2 (prev 35, change 36) turn 0.3 (prev 0.9) | PlayerCamera snap 0 shake 2.5 punch 0.0 timescale 1.00
+frame 1306 JUMP move 35 (prev 2, change 36) turn 0.3 (prev 0.3) | PlayerCamera snap 0 shake 2.5 punch 0.0 timescale 1.00
+frame 1314 shake power 2.5 time 5
+frame 1314 fov punch -15.0 deg time 90 in 20
+frame 1314 state PlayerCamera -> BattleSmoothCamera
+frame 1314 state BattleSmoothCamera -> PlayerCamera
+frame 1314 JUMP move 2 (prev 32, change 31) turn 0.2 (prev 0.6) | PlayerCamera snap 0 shake 2.5 punch -0.8 timescale 1.00
+frame 1315 JUMP move 33 (prev 2, change 32) turn 0.2 (prev 0.2) | PlayerCamera snap 0 shake 2.5 punch -1.5 timescale 1.00
+frame 1361 state PlayerCamera -> PartBrokenCameraBStart
+frame 1361 JUMP move 20 (prev 12, change 18) turn 2.7 (prev 0.2) | PartBrokenCameraBStart snap 0 shake 0.0 punch -7.0 timescale 1.00
+frame 1384 state PartBrokenCameraBStart -> PartBrokenCameraB
+frame 1384 JUMP move 73 (prev 10, change 63) turn 14.1 (prev 1.3) | PartBrokenCameraB snap 0 shake 0.0 punch -2.1 timescale 1.00
+frame 1444 state PartBrokenCameraB -> PlayerCamera
+frame 1445 JUMP move 39 (prev 1, change 39) turn 0.6 (prev 0.0) | PlayerCamera snap 0 shake 0.0 punch 0.0 timescale 1.00
+frame 1446 JUMP move 16 (prev 39, change 23) turn 0.2 (prev 0.6) | PlayerCamera snap 0 shake 0.0 punch 0.0 timescale 1.00
+frame 1515 shake power 2.5 time 5
+frame 1515 state PlayerCamera -> BattleSmoothCamera
+frame 1515 JUMP move 13 (prev 24, change 24) turn 1.7 (prev 0.7) | BattleSmoothCamera snap 0 shake 2.5 punch 0.0 timescale 1.00
+frame 1549 shake power 2.5 time 5
+frame 1561 shake power 2.5 time 5
+frame 1591 shake power 2.5 time 5
+frame 1606 state BattleSmoothCamera -> PartBrokenCameraAStart
+frame 1606 JUMP move 35 (prev 7, change 41) turn 5.9 (prev 0.0) | PartBrokenCameraAStart snap 0 shake 0.0 punch 0.0 timescale 1.00
+frame 1659 state PartBrokenCameraAStart -> PartBrokenCameraA
+frame 1659 JUMP move 17 (prev 3, change 19) turn 2.7 (prev 0.4) | PartBrokenCameraA snap 0 shake 0.0 punch 0.0 timescale 1.00
+frame 1708 state PartBrokenCameraA -> PartBrokenCameraAEnd
+frame 1708 JUMP move 217 (prev 1, change 218) turn 32.0 (prev 0.2) | PartBrokenCameraAEnd snap 0 shake 0.0 punch 0.0 timescale 1.00
+frame 1709 JUMP move 92 (prev 217, change 138) turn 13.4 (prev 32.0) | PartBrokenCameraAEnd snap 0 shake 0.0 punch 0.0 timescale 1.00
+frame 1710 JUMP move 72 (prev 92, change 27) turn 10.3 (prev 13.4) | PartBrokenCameraAEnd snap 0 shake 0.0 punch 0.0 timescale 1.00
+frame 1738 state PartBrokenCameraAEnd -> PlayerCamera
+frame 1738 JUMP move 2 (prev 25, change 25) turn 0.0 (prev 3.1) | PlayerCamera snap 0 shake 0.0 punch 0.0 timescale 1.00
+frame 1868 collision snap 298 -> 111 (raw 296)
+frame 1868 JUMP move 175 (prev 16, change 185) turn 1.7 (prev 1.6) | PlayerCamera snap 187 shake 0.0 punch 0.0 timescale 1.00
+frame 1869 collision snap 111 -> 100 (raw 295)
+frame 1869 JUMP move 7 (prev 175, change 175) turn 1.7 (prev 1.7) | PlayerCamera snap 12 shake 0.0 punch 0.0 timescale 1.00
+frame 1870 collision snap 100 -> 88 (raw 293)
+frame 1871 collision snap 88 -> 78 (raw 292)
+frame 1872 collision snap 78 -> 70 (raw 292)
+frame 1873 JUMP move 36 (prev 7, change 33) turn 1.0 (prev 1.5) | PlayerCamera snap 0 shake 0.0 punch 0.0 timescale 1.00
+frame 2444 state PlayerCamera -> UltCamera
+frame 2453 JUMP move 94 (prev 40, change 55) turn 11.4 (prev 4.3) | UltCamera snap 0 shake 0.0 punch 0.0 timescale 0.10
+frame 2454 JUMP move 0 (prev 94, change 94) turn 0.0 (prev 11.4) | UltCamera snap 0 shake 0.0 punch 0.0 timescale 0.10
+frame 2523 state UltCamera -> PlayerCamera
+frame 2524 JUMP move 41 (prev 0, change 41) turn 5.7 (prev 0.0) | PlayerCamera snap 0 shake 0.0 punch 0.0 timescale 1.00
+frame 2525 JUMP move 17 (prev 41, change 24) turn 2.0 (prev 5.7) | PlayerCamera snap 0 shake 0.0 punch 0.0 timescale 1.00

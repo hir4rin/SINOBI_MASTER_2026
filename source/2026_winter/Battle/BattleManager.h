@@ -1,12 +1,21 @@
 ﻿#pragma once
 #include <memory>
+#include "Math/Vector3.h"
 
 class LockOnManager;
 class AttackTokenManager;
+class BloodDecalManager;
 
 class BattleManager
 {
 public:
+	//トドメのムービーの画面効果
+	struct FinisherScreen
+	{
+		bool isPlaying = false;
+		float whiteRate = 0.0f;//白いフラッシュ
+		float slashRate = 0.0f;//斬撃の線
+	};
 
 	BattleManager();
 	virtual ~BattleManager();
@@ -14,7 +23,9 @@ public:
 	void Init();
 	void Update();
 
-	void SetUltStart(int frames = -1) { m_ultCount = frames; m_isUltimating = true; };
+	//burstPos:白い爆発を出すワールド座標
+	void SetUltStart(int frames, const Vector3& burstPos) { m_ultCount = frames; m_isUltimating = true; m_ultBurstPos = burstPos; };
+	const Vector3& GetUltBurstPos()const { return m_ultBurstPos; }
 	bool GetIsUltimating() { return m_isUltimating; };
 	void SetUltEnd() { m_ultCount = -1; m_isUltimating = false; };
 
@@ -39,11 +50,15 @@ public:
 	bool GetIsBattleEnd() { return m_isBattleEnd; }
 
 	std::weak_ptr<AttackTokenManager> GetAttackTokenMgr() { return m_attackTokenMgr; }
+	std::weak_ptr<BloodDecalManager> GetBloodDecalMgr() { return m_bloodDecalMgr; }
+	FinisherScreen& GetFinisherScreen() { return m_finisherScreen; }
 private:
 	std::shared_ptr<AttackTokenManager> m_attackTokenMgr;//敵の攻撃権
+	std::shared_ptr<BloodDecalManager> m_bloodDecalMgr;//床の血の跡
 
 	bool m_isUltimating = false;//必殺技の演出中かどうか
 	int m_ultCount = -1;//必殺技の演出時間カウント
+	Vector3 m_ultBurstPos;//白い爆発を出す位置
 
 	bool m_isPhotoMode = false;
 	bool m_isStageEditMode = false;//ステージ編集モード中かどうか
@@ -53,6 +68,7 @@ private:
 	bool m_isLastHitEventPlaying = false;//ラストヒットのイベント中かどうか
 
 	bool m_isBattleEnd = false;//バトルが終わったか
+	FinisherScreen m_finisherScreen;
 
 };
 
