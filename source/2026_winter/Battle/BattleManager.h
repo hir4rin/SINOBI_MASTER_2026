@@ -5,6 +5,7 @@
 class LockOnManager;
 class AttackTokenManager;
 class BloodDecalManager;
+class ResultRecorder;
 
 class BattleManager
 {
@@ -51,10 +52,17 @@ public:
 
 	std::weak_ptr<AttackTokenManager> GetAttackTokenMgr() { return m_attackTokenMgr; }
 	std::weak_ptr<BloodDecalManager> GetBloodDecalMgr() { return m_bloodDecalMgr; }
+	std::weak_ptr<ResultRecorder> GetResultRecorder() { return m_resultRecorder; }
 	FinisherScreen& GetFinisherScreen() { return m_finisherScreen; }
+
+	//画面に血を付ける(暗殺・確殺。ScreenBloodUIが受け取る)
+	void RequestScreenBlood() { m_isScreenBloodRequested = true; }
+	//来ていればtrue(受け取ったら消える)
+	bool TakeScreenBloodRequest();
 private:
 	std::shared_ptr<AttackTokenManager> m_attackTokenMgr;//敵の攻撃権
 	std::shared_ptr<BloodDecalManager> m_bloodDecalMgr;//床の血の跡
+	std::shared_ptr<ResultRecorder> m_resultRecorder;//リザルト用の記録
 
 	bool m_isUltimating = false;//必殺技の演出中かどうか
 	int m_ultCount = -1;//必殺技の演出時間カウント
@@ -69,6 +77,7 @@ private:
 
 	bool m_isBattleEnd = false;//バトルが終わったか
 	FinisherScreen m_finisherScreen;
+	bool m_isScreenBloodRequested = false;//画面の血
 
 };
 

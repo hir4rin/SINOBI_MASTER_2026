@@ -48,10 +48,16 @@
     <ClCompile Include="imgui\backends\imgui_impl_dx11.cpp">
       <Filter>imgui\backends</Filter>
     </ClCompile>
+    <ClCompile Include="Scene\TutorialScene.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="Scene\PauseScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Scene\StageSelectScene.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\TitleScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Scene\ResultScene.cpp">
@@ -297,6 +303,9 @@
     <ClCompile Include="UI\KessatsuUI.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="UI\ScreenBloodUI.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="UI\PlayerHUD.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -346,6 +355,15 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Battle\BattleManager.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Battle\ResultRecorder.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\ResultUI.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\UIFont.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Character\Enemy\State\EnemyStateBase.cpp">
@@ -566,10 +584,16 @@
     <ClInclude Include="imgui\backends\imgui_impl_dx11.h">
       <Filter>imgui\backends</Filter>
     </ClInclude>
+    <ClInclude Include="Scene\TutorialScene.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="Scene\PauseScene.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Scene\StageSelectScene.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene\TitleScene.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Scene\ResultScene.h">
@@ -839,6 +863,9 @@
     <ClInclude Include="UI\KessatsuUI.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="UI\ScreenBloodUI.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="UI\PlayerHUD.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -888,6 +915,15 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Battle\BattleManager.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Battle\ResultRecorder.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\ResultUI.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\UIFont.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="DataLoader\AnimData.h">
@@ -1073,6 +1109,9 @@
     <ClInclude Include="Battle\PhaseManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="DataLoader\TutorialPageData.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Render\Shader\MV1VertexShader.hlsl">
@@ -1090,6 +1129,9 @@
     <None Include="Render\Shader\CharacterLookPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </None>
+    <None Include="Render\Shader\TitleLogoPS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </None>
     <None Include="Render\Shader\VertexShader.h">
       <Filter>リソース ファイル</Filter>
     </None>
@@ -1103,4 +1145,4 @@
       <Filter>リソース ファイル</Filter>
     </None>
   </ItemGroup>
-</Project>
+</Project>

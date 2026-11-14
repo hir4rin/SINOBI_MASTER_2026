@@ -1,7 +1,8 @@
 ﻿#include "Application.h"
 #include "EffekseerForDXLib.h"
 #include "Game.h"
-#include "Scene/StageSelectScene.h"
+#include "Scene/TitleScene.h"
+#include "Scene/ResultScene.h"
 #include "Scene/SceneMain.h"
 #include <algorithm>
 #include <cstring>
@@ -11,6 +12,7 @@
 #include "FrameProfiler.h"
 #include "Render/ModelShaderManager.h"
 #include "Render/CharacterLook.h"
+#include "DataLoader/DataManager.h"
 #include <d3d11.h>
 #include <dxgi.h>
 #include <dwmapi.h>
@@ -103,6 +105,7 @@ bool Application::Init()
 
 	//どのステージでも使うもの(プレイヤー・エフェクト)の読み込み。ステージの分は入るときに読む(System::LoadStage)
 	System::GetInstance().LoadCommon();
+	DataManager::GetInstance().LoadTutorial();
 	while (GetASyncLoadNum() > 0)
 	{
 		if (ProcessMessage() == -1)
@@ -124,7 +127,12 @@ void Application::Run()
 	const char* benchArg = strstr(GetCommandLineA(), "-bench");
 	const bool isBench = benchArg != nullptr;
 	const int benchFrame = (isBench && benchArg[6] == '=') ? atoi(benchArg + 7) : kBenchFrame;
-	if (isBench)
+	//-result でリザルト画面だけを仮の結果で開く(見た目の確認用。自己ベストは保存しない)
+	if (strstr(GetCommandLineA(), "-result"))
+	{
+		sceneController.ResetScene<ResultScene>(StageType::Cyber, ResultScene::MakeDebugData(), false);
+	}
+	else if (isBench)
 	{
 		const char* stageArg = strstr(GetCommandLineA(), "-stage=");
 		const int stageNo = stageArg ? atoi(stageArg + 7) : static_cast<int>(StageType::Cyber);
@@ -133,7 +141,7 @@ void Application::Run()
 	}
 	else
 	{
-		sceneController.ResetScene<StageSelectScene>();
+		sceneController.ResetScene<TitleScene>();
 	}
 	int frameCount = 0;
 

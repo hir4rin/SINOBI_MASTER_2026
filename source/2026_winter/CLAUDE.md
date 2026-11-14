@@ -1518,6 +1518,220 @@
 - 決定: スキル攻撃を自前フレーム(`m_frame`)で進める、最後の一撃で旗を立ててスキルの終わりに血殺を発動、姿勢は `Dodge_Combat_F` の13F(分身と同じ形だった)。
 - 11/10: 段階3まで実装済み(1〜2はユーザー、3は一部Claude)。Debug x64のビルドは通った。**ゲームでの確認はまだ**(手順書の段階1・2・3の「確認」)。次は確認と、必要なら段階4の見た目調整。
 
+### 2026-11-11 ガード中の敵のふちを白く光らせる(リムライト)
+- `LitModelPS.hlsl` に `GuardRimBuffer`(b8)。`pow(1 - dot(N,V), 細さ) × 色` をフォグの後・色変えの前に足す。色が0なら何もしない。
+- `ModelShaderManager::SetGuardRim(色×強さ, 細さ) / ClearGuardRim()`。ふちの光があるときは明かり・色変えが無くても `LitModelPS` で描く。b8 は lit で描くたびに付ける(ステージなどは0のまま)。
+- `EnemyBase::UpdateGuardRim()`(今のステートが `EnemyGuard` か派生(BossGuard)なら 6F で出て、それ以外は 12F で消える。実フレーム)、`BeginGuardRim / EndGuardRim`。
+  `EnemyManager` が Update の後と Draw の前後で呼ぶので、各敵のコードは触っていない。武器・取れた部位も一緒に光る。
+- 値は `EnemyBase.cpp` 先頭の `kGuardRim〜`(色 0.85,0.92,1.0、強さ1.5、明滅±30%・50F、細さ3.0)。
+- 血殺中(黒モード)は黒いシェーダーなので光らない。BossArm は自分がガードのステートにならないので光らない。
+- Debug(x64)でビルドは通った。fxc で2通り(BUMPMAP 有り/無し)のコンパイルも通った。**ゲームでの確認はまだ**(強さ・細さ、白い敵の上での見え方)。
+- (追記)最初はシェーダーへの追記が入っていなかった(Git Bash の python は Store の空のものでスクリプトが動いていなかった)。直した。
+- (追記)体全体の光(b8 の param.y)は外した。そのあと反転ハル(法線の向きにふくらませた裏面を加算で描く)でオーラを作ったが、ユーザーに合わなかったので**消した**(シェーダー・コードとも残していない)。ふちの光は細めにした(強さ1.5・細さ3.0)。
+- (追記)**オーラ(GuardGlow)はユーザーの判断で全部消した。ガード中は輪郭のふちの光だけ**。
+  - 試したもの: ぼかした光(敵を白いシルエットで別の画面に描き、縮めてぼかして加算) → NG4 の録画(`Videos/画面録画/画面録画 2026-11-11 195947.mp4`、8.5秒・13.4秒あたり)に合わせて、動きの後ろに残る白い残像(前のフレームの残像を少しずつ暗くして重ねる、カメラが動いた分ずらす)。
+  - 消したもの: `Render/GuardGlow.h/.cpp`、`Render/Shader/GuardSilhouettePS.hlsl`、`ModelShaderManager` のシルエットのモード、`EnemyBase::BeginGuardGlow / EndGuardGlow`、`EnemyManager` の残像の描画、vcxproj/filters の登録。
+  - 分かったこと(また作るとき用):
+    - 描画先を変えると DxLib のカメラが戻る。**行列(`SetCameraViewMatrix` など)で戻すと `GetCameraPosition()` が2Dの初期値(640,360,-623)のまま**になり、プレイヤーの見た目(`CharacterLook`、この位置で光を計算する)が青白くなった。位置・注視点・上向き・視野角・ニア/ファーを覚えて `SetCameraNearFar` → `SetupCamera_Perspective` → `SetCameraPositionAndTargetAndUpVec` で戻すと直った。
+    - `SetDrawZBuffer(DX_SCREEN_BACK)` は0を返すが効かず、別の画面で画面のZは借りられなかった(壁の向こうの敵の光も透けた)。
+    - 重さは全部の敵が光って Release で 1フレーム +0.18ms(GPU 込み)。
+
+
+### 2026-11-11 ガードブレイクの演出(紫の閃光・ガラス片)
+- 参考: ユーザーの NG4 の録画 `Videos/画面録画/画面録画 2026-11-11 201252.mp4`(2.4秒・5.5秒・8.5秒あたり)。流れは 白い殻 → 紫の放射状の閃光 → 殻が虹色のガラスになって割れる → 白と黒の破片が飛び散る(約0.6秒)。最初の「全身が白く飛ぶ」はユーザーの希望で作っていない。
+- `EnemyGuardBreak::Enter` → `EnemyBase::StartGuardBreakEffect()`: 閃光とガラス片を胸の高さ(足元+100)に20倍で再生(+Z = プレイヤー→敵)。`SetOwnSpeed(1.0)` でチャンスのスロー(0.2)に関係なくふつうの速さ。ガードの光(`m_guardRimRate`)を0にする。値は `EnemyBase.cpp` 先頭の `kGuardBreak〜`。
+- エフェクト(`data/Effect/GuardBreak/`、1/20で作成、`AsyncData::GuardBreakFlashEffect / GuardBreakShardsEffect`、System の LoadCommon で読む):
+  - `GuardBreakFlash`: Core(白→紫の光)・Haze / Haze2(大きな紫のもや)・Rays(放射状の筋16本、RotatedBillboard でランダムな向き)・Line(横一文字の線)。(ZTest は最初切っていたが、プレイヤーにもかぶるので Zオフセットに変えた。下の追記)。
+  - `GuardBreakShards`: ShardWhite(60個)・ShardDark(18個)。Billboard=Fixed でランダムに回転しながら飛び、重力で落ちる(PVA の加速度)。画像 `Texture/GB_Shard.png` は2x2の4種類(UV アニメのランダムな開始で選ぶ)。作り直しは scratchpad の gen_shards.ps1(残していない。四角形・三角形を白で塗るだけ)。
+- (追記)白い殻が赤・緑・青に分かれて虹色に割れる処理(`GuardGlow::EndShatter`)も作ったが、わかりづらかったので**消した**(ユーザーの判断)。ガードブレイクで出るのは紫の閃光とガラス片だけ。ガードのふちの光はガードブレイクの瞬間に止める(`m_guardRimRate = 0`)。
+- (追記)**直した2点**:
+  - ガードブレイク付近でプレイヤーが青白くなる: 閃光の ZTest を切っていたので、敵の後に描くプレイヤーの上にも大きな紫のもやが重なっていた。ZTest を戻し、**Zオフセット(DepthOffset)で閃光だけカメラ側へ寄せた**(Core / Rays / Line 60、Haze / Haze2 100。単位はゲームの cm)。敵の体には隠れず、手前のプレイヤーには隠れる。
+    「Zオフセットの拡大(IsDepthOffsetChangedDependingOnParticleScale)」を入れると、オフセットにパーティクルの大きさ(20倍 × もやの大きさ16〜26)まで掛かり、閃光が敵の体の上にしか出なくなったので切っている。
+  - ガードブレイクでもプレイヤーに紫が重ならないことを撮って確認した(Release)。
+  - (プレイヤーが青白くなるもう1つの原因は、ガード中の白い残像(GuardGlow)のカメラの戻し方だった。GuardGlow は消した。上のリムライトの追記)
+- 一時コードで全部の敵を80Fガード → ガードブレイクにして列車ステージで撮った(Release)。紫の光・飛び散る破片が出る。**実際の操作でのガードブレイク・ガードブレイクのチャンスUIとの重なり・ボスでの見え方はまだ**。
+### 2026-11-11 敵・ステージをいつも LitModelPS で描く(列車とステージ1で敵の見た目が違った件)
+- 原因: `ModelShaderManager::DrawModel` は明かり・色変えが無いと `MV1DrawModel`(DxLib の標準)で描いていた。列車ステージは明かりが無いので標準、ステージ1は `LitModelPS`。
+  標準の描画は陰影が薄く白飛びして見え、`LitModelPS` は陰影・反射が出る(同じ場所で撮って比べた)。列車でガードすると `LitModelPS` に切り替わり、ステージ1と同じ見た目になっていた。
+- `DrawModel` は黒モード以外いつも `LitModelPS`(シェーダーが読めなかったときだけ標準)。列車・デモ・テストのステージと敵も変わる。
+- ステージ1は今まで通り明かり・夜のフォグがかかるので、明るさの違いはそのぶん残る(描き方は同じ)。
+- 一時コードで列車の敵を撮り、変更後の普通の描画が前の `LitModelPS` と同じになること、ふちの光が出ることを確認した(白い敵の上だと控えめ。暗い背景だとふちが見える)。4ステージとも `-bench=120` で正常終了。
+- **Git Bash の `python` は使えない**(Store の空のもの)。画像の処理は PowerShell の System.Drawing で行った。
+
+### 2026-11-11 画面に付く血(ScreenBloodUI)
+- 参考: NG4 の録画 `Videos/画面録画/画面録画 2026-11-11 210744.mp4`。斬った瞬間にレンズへ血が付き、ふちが暗く沈んで、約1.5秒で消える。案A(2D画像だけ)で作った。放射ブラー・色ずれ(案B)は作っていない。
+- `UI/ScreenBloodUI.h/.cpp`(UIBase 継承、Front)。`UIManager::InGameInit` で **PlayerHUD より前**に登録しているので、HUD は血の手前に出る。vcxproj/filters に登録した。
+- **出すのは暗殺・確殺だけ**(ユーザーの指定。部位破壊・血殺では出さない)。`BattleManager::RequestScreenBlood()` / `TakeScreenBloodRequest()`。床の血(`PlayFloorBlood`)の直後の4か所で呼ぶ: `EnemyAssasined`(地上の暗殺)、`PlayerStateAirAssasin`(空中の暗殺)、`PlayerStatePartBrokenKill`(確殺のパターンA・B)。
+- **見た目は血殺の血のUI(splash2_UI・white_burst)と同じ、べた塗りでふちがくっきりした墨の飛沫**(最初の陰影つきの丸い血は「変」と言われて作り直した)。
+  - 大きな飛沫: 冠のような塊から棘と尾を引く粒が飛ぶ。左右の角に1つずつ(上下はランダム、対角が多め)、塊を角に置いて画面の中心へ飛ばす。
+  - 粒の帯(splash2_UI のような形): 上か下のふちに1本、ふちに沿って少し内側へ。
+  - 根元を中心に3Fで広がり、100Fで消える(最後の45Fでフェード)。色は (128,2,12) のべた塗り。
+  - ふちに血殺の墨のビネット(`bloodUI/ink_vignette.png`)を薄く(最大110、90F)。
+  - 値は .cpp 先頭。
+- 画像: `data/UI/ScreenBlood/`(splat_0〜3・spray_0〜2、1024px。白で形はアルファだけ、乗算済みアルファで読む)。作り直しは `../tools/BloodDecalGen/MakeScreenBlood.ps1`。画像の根元の位置(splat は中心から -0.45×0.49、spray は -0.82×0.49)を変えたら .cpp の `kSplatRootRate` / `kSprayRootRate` も直す。
+- 確認: Release・Debug(x64)のビルドは通った。一時コードでステージ1に2回出して画面を撮った(一時コードは消した)。**実際に暗殺・確殺しての確認はまだ**(演出のカメラ・スローと重なったときの見え方、量)。
+
+### 2026-11-12 タイトル画面(TitleScene)と、ロゴを斬って垂らす演出(シェーダー)
+- `Scene/TitleScene.h/.cpp`(vcxproj/filters に登録)。**起動して最初のシーン**(`Application::Run` の `ResetScene<TitleScene>`。前は StageSelectScene)。Pause / Result から戻る先はステージセレクトのまま。
+- 流れ(フレームはシーンの始まりから。値は .cpp 先頭): フェードイン30F → 鋼の「忍」と後ろの帯が 1.06 倍から 45F で縮みながら出る → 85F 斬り口の光が左から5Fで走る → 89F 白い閃光(加算10F)・揺れ(20F)・上半分が線に沿って18pxずれてすき間7px → 95F から45Fで斬り口から下へ赤く染まる → 107F から300Fかけて垂れが伸びる → 140F から「PRESS  A  BUTTON」(游明朝)が明滅。
+  - 演出の途中で A を押すと 140F まで飛ばす。その後の A でフェードアウトしてステージセレクト。
+- **シェーダー `Render/Shader/TitleLogoPS.hlsl`**(実行時にコンパイル。`ModelShaderManager::LoadShaderWithMacro` を public にして使っている)。`DrawPrimitive2DToShader` で四角を1枚描く。定数は b9。
+  - t0 = 斬る前の鋼、t1 = 同じ形の赤。画像のピクセル座標で、斬り線より上は線に沿ってずらす、すき間は透明、下は斬り口からの距離で鋼→赤。
+  - 垂れ: 20px ごとに1本(6割の列)、太さ・長さ・伸びる速さを乱数で変える。下の透明な所から上へ長さぶん探して、赤の濃い所(α>0.7)があれば血の色(先ほど暗い・真ん中に細い光)。四角は画像より 200px 下に伸ばして、垂れがはみ出せるようにしている。
+  - **2D 用の入力は先頭に `SV_POSITION` が要る**(抜くと全部1つずれて、テクスチャ座標が 0 になり何も出なかった)。**hlsl は BOM なしの UTF-8**(BOM があると「Illegal character」でコンパイルに失敗する)。
+- 画像は `data/UI/Title/`: `logo_back.png`(帯・交差の筆・しずく・SHINOBI) / `logo_steel.png` / `logo_red.png` / `logo_cut.png`(斬り口の光、加算) と斬り線の `logo_cut.csv`(x,y,向き。画像のピクセル座標)。全部 747x640 で同じ位置。`logo.png` は完成形の1枚(今は使っていない)。
+  - Illustrator の `Shinobu_vertical` に `layers: true` を付けると、`exportLayers` がこれらを書き出す(steel / red は完成形の書き出しのときは隠しておく。斬り線は見えない目印の線 `cutMarker` を置いて、縮小・移動の後の位置を読む)。
+- 背景は暗い色＋メニューの周辺減光(`data/UI/Menu/vignette.png` を乗算)。
+- **斬り線は後ろの暗い赤の斜めの筆と同じ線**(約29°。Illustrator で筆をまっすぐな1本にして、その線で斬る。前は 8° で筆とずれていた)。
+- **斬った瞬間の閃光(Effekseer、2D)**: `data/Effect/Title/TitleSlash.efk`。85F(斬り口の光が走り始める)に `PlaySlashEffect` で、斬り線の中心・角度に合わせ、刃の長さをロゴ画像で 510px(斬り線は約445px)にして出す。
+  - **エフェクトのスプライトは Billboard=Fixed にすること**。Billboard(カメラを向く)のままだと `SetRotationPlayingEffekseer2DEffect` の回転が効かず、閃光がいつも水平に出ていた(8° のときも実はずれていた)。元データは `TitleSlash_v2/`(v1 は Billboard のまま)。
+  - 29° で、閃光・斬り口の光・ずれ・赤く染まる境目が背景の筆とそろうのを連写で確認。**垂れ切った後の画面はまだ見ていない**(撮影が別のウィンドウに隠れたため)。`Effekseer_Set2DSetting` はコンストラクタ、`UpdateEffekseer2D` は Update、`DrawEffekseer2D` はロゴの後・画面の白い光の前。
+  - 作り方・数値は `../tools/TitleSlashFx/RESEARCH_NOTES.md`(元の .efkefc は `TitleSlash_v1/`、テクスチャは `gen_slash_tex.ps1`)。画面の白い光と斬り口の光の画像は残して重ねている。
+- Debug(x64)でビルドは通った。起動して時間をずらして画面を撮り、斬る・染まる・垂れるまで動くのを確認。閃光が斬り線に沿って走るのも連写で確認した。**A でステージセレクトへ進むところ・A で飛ばすところはまだ試していない**。Release はまだビルドしていない。
+
+### 2026-11-12 タイトルロゴ(Illustrator で作る) → 決定: 10 の「忍」(Shinobu_vertical)
+- **決定版 `Shinobu_vertical`**: 「忍 = 刃＋心」で、上の刃を鋼・下の心を血の赤にして境目を斬る(`slash` に中心 `at` を渡す。高さは `SPLIT`)。KSO黒龍爽の忍に面取り・黒いふち・赤い光・落ち影。後ろに赤い筆の帯(先に墨のしずく)と交差する暗い赤の筆、帯の上に縦の SHINOBI(Copperplate)。
+  - ゲーム用: **`data/UI/Title/logo.png`(747x640、透過。余白は `GAME_MARGIN`)**。確認用は `../tools/TitleLogoGen/out/Shinobu_vertical_preview.png`。
+  - `ONLY = ["Shinobu_vertical"]` で決定版だけ作る(空にすると全部の案)。KSO黒龍爽が入っていない PC では作り直せない。
+- 候補だった 05 の斬った文字(`slicedTitle`。`Title_NINJA` 10° / `Title_SHINOBI` 6°)も、他の案と同じくコードと `out/` の出力を残してある(ゲーム用の画像は消した)。`out/R3_〜`・`out/round2/` も参考に残してある。
+- タイトル画面(`Scene/TitleScene`)で表示している(下の 11/12 の欄)。
+- `../tools/TitleLogoGen/MakeTitleLogo.ps1` が Illustrator を COM(`Illustrator.Application`)で起動し、`title_logo.jsx`(ExtendScript)を実行する。
+- 最初の案(フォントの「忍」＋飾り)は「AI臭い」でボツ。**文字はフォントを使わず、筆の線を1画ずつ組む**方式にした(`GLYPHS`: 高さ100の座標で、点の列・太さ・入り(b/s)・抜き(s/f/b))。
+  - 線の中心を Catmull-Rom でならし、太さの変化(入り・抜き)とふちの荒れを付けて輪郭にする。抜きが "f" の画は、中に細い穴(かすれ)を開けた複合パス(外側 POSITIVE、穴 NEGATIVE)。
+- 2回目: Koei Tecmo / Platinum / Capcom のロゴの作り方を参考に12案(`VARIANTS` の `build` 関数)。筆の文字(`brush`)と、フォントを輪郭にした文字(`type` / 縦書き `typeV`)を組み合わせる。
+  - KT: 01 筆の忍＋Perpetua Titling / 02 筆の NINJA＋白い忍(KSO) / 03 金の忍者(KSO)＋NINJA
+  - PG: 04 Bodoni の SHINOBI＋線だけの大きな忍 / 05 Acumin の NINJA を斬って上白・下赤 / 06 横の切れ目で速さ / 07 ステンシル風の忍(Noto Sans JP Black)
+  - CP: 08 Old English の SHINOBI(赤のグラデ) / 09 鋼の NINJA(Trajan) / 10 縦書きの忍者＋縦の NINJA / 11 荒い筆の忍＋赤い版ずれ / 12 極太明朝の忍を斬る
+  - 道具: `paint`(色 / グラデの段 / ふち)、`slash`(斜めに斬ってずらす)、`clipTo`(帯の部分だけ残す)。
+- 3回目: 2回目の 02・03・04・05・09・10 が好評だったので、その6つを作り込んだ(`R3_〜`。今の `VARIANTS` はこの6つだけ、2回目の出力は `out/round2/` に移した)。
+  - `fx(item, {glow, shadow, extrude, rim, outline, emboss})`: 本体の後ろに 光(ぼかし) / 落ち影 / 押し出し / 赤い縁 / ふち / 面取り(明暗を斜めにずらした複製) を重ね、まとめたグループを返す。**fx の後で本体だけ動かすと重ねた物が残るので、配置してから fx を呼ぶ**。
+  - ぼかしは `applyEffect('<LiveEffect name="Adobe PSL Gaussian Blur">…')`。グラデの段に3つ目の値を書くと不透明度。
+  - 筆の文字に `spray`(払いの先に細長いしずく)。`strokeAt` で好きな形の1画(円相・刃のような線・縦の帯)。`cutLine` は斬った線の光。
+  - 02 赤い筆の NINJA(グラデ・押し出し・斬り・白い忍に赤い光) / 03 金の忍者(面取り・影・赤い円相・刃の線つき副題) / 04 Bodoni の SHINOBI(細い線・消えていく大きな忍・縦のシノビ・O を斬る線) / 05 斬った NINJA(押し出し・斬り口の光・忍の札) / 09 鋼の NINJA(面取り・黒と赤の縁・後ろで光る忍) / 10 縦の忍者(赤い筆の帯・NINJA・朱の印)。
+- 出力: `../tools/TitleLogoGen/out/` に案ごとの透過PNG・暗い背景の `_preview.png`・手直し用の `.ai`(1600x800)。**作り直すと .ai も上書きされる**。
+- ハマった所: 大きい座標で組むと Illustrator のキャンバス(約16000pt)を超えて消える → 小さく組んでから resize。穴の点に NaN が混ざると画ごと消える。
+  マスク(クリップ)は複合パスが使えない → 帯ごとに複製して1本のパスで切る。マスクの大きさがグループの大きさになるので、マスクは文字の外枠で切っておく(大きいと全体の縮小に巻き込まれて小さくなる)。
+  マスクのパスに塗りを付けると四角が見えてしまう → `paint` は `clipping` のパスを飛ばす。
+
+### 2026-11-11 確殺の対象を足元の高さの差で絞る
+- `LockOnManager::TryPartBrokenTarget`: プレイヤーと敵の足元(`GetRigidBody().GetPos().y`)の高さの差が `kPartBrokenMaxHeightDiff`(50)以上の敵は候補から外す。
+- 外すほう(`CheckPartBrokenTarget`)も同じ: 高さの差が50以上になったら対象から外す(距離の判定の前)。距離と違って余裕(margin)は付けていないので、ちょうど50前後の段差だと出たり消えたりするかもしれない。
+- Debug(x64)でビルドは通った。ゲームでの確認はまだ。
+
+### 2026-11-12 リザルト画面(NG4 のリザルトを参考に)
+- 配置: 左=ランクのハンコと総合スコア、中央左=足す項目(技・切る数・クリアタイム)、中央右=倍率(アイテム・死亡)、右=テクニックの詳細データ(コンボ・部位破壊・確殺・暗殺・スキル技・スキル血殺・真必殺技)、下=A 次へ / Y リトライ。
+- 点: `総合 = (技 + 切 + 時) × 道 × 死`。`Battle/ResultRecorder.h/.cpp` の `ResultData` が計算する(値は .cpp 先頭と関数内の表。全部仮)。
+  - 技 = 最大コンボ×20 + 技ごとの点×回数(部位破壊300・確殺800・暗殺800・スキル技150・スキル血殺1000・真必殺技1500)。上限なし。
+  - 切 = 倒した数 / 配置CSVの敵の数 × 20000。時 = 目標(`StageInfo::targetClearSec`、今は全部300秒)以内なら20000、目標の3倍で0。
+  - 道・死 = 1回ごとに -0.1(最低0.5)。**アイテム・死亡の仕組みが無いので、今はいつも0回(×1.0)**。
+  - ランク: C 下忍 / B 中忍(20000〜) / A 上忍(32000〜) / S 極忍(40000〜) / SSS 鬼忍(46000〜)。(11/13 頭領・影から改名。超忍は NG4 の最上位なので使わない)
+  - ランクの紋章(SSS・S・A・B・C)の案: アルファベットは Manufacturing Consent(OFL、ゲームに同梱できる)、筆の漢字を半分重ね、後ろにひし形の格子・網点・色ずれ。色は C 銅 / B 鋼 / A 金 / S 血の赤 / SSS 白銀＋赤い光、上ほど飾り(斬撃・火花・血しぶき)が増える。紋章の漢字は「忍」を外した1文字(下・中・上・極・鬼)。イメージは Artifact「ランク紋章案」。
+  - (11/13)**紋章をゲームに入れた**。`data/UI/Result/rank_0_C.png` 〜 `rank_4_SSS.png`(768px、透明な背景。番号は `CalcRank` と同じ)。
+    作り直しは `../tools/RankEmblemGen/MakeRankEmblem.ps1`: `rank_emblem_gen.html`(Artifact と同じ描き方の canvas)を Edge のヘッドレスで開き、`--dump-dom` で出した PNG を保存する。フォントは Google Fonts から読むのでネットが要る(Manufacturing Consent・Yuji Boku とも OFL)。
+  - `ResultUI::DrawStamp` は紋章の画像を `DrawRotaGraphF` で描くだけになった(上から押す・揺れはそのまま)。乗算済みアルファで読み(`LoadEmblem`)、`DX_BLENDMODE_PMA_ALPHA` で描く。大きさは `kEmblemSize`(320)、中心は `kStampX/Y`(196, 232)。
+    前の仮のハンコ(四角の枠・縦書きの文字・`ScreenBlood/splat` の墨)とハンコ用のフォントは削除。
+  - ハンコをやめたので、ランクの名前は「クリア評価」の線の右に出す(紋章が当たってから)。
+  - `-result` で撮って S(極忍)の紋章が出ることを確認した。ほかの4つのランクはゲームの画面ではまだ見ていない(PNG は5枚とも書き出せている)。
+- 記録: `ResultRecorder`(`BattleManager` が持つ。`GetResultRecorder().lock()`)。クリアタイムは `BattleManager::Update` で実フレームを数える(ポーズ・フォトモード中は数えない)。
+  コンボは攻撃が当たるたびに+1、90F当たらないか被弾で0(`AttackCol` / `Player::OnDamage`)。技は `EnemyBase::OnDamage`(部位破壊)、`PlayerStatePartBrokenKill::Enter`、`PlayerStateAssasin` / `AirAssasin::Enter`、`PlayerStateSkillAttack::Enter`、`Player::StartSkillKessatsu`、`AttackCol` の必殺技の開始で数える。
+- `SceneMain`: フェードアウトが終わったら `ResetScene<ResultScene>(stageType, result)`。
+- `UI/ResultUI.h/.cpp`: 描画と出る順番(実フレーム、.cpp 先頭の `k〜Start`)。背景(ステージセレクトの MenuUI と同じ。色＋格子・流れるドット・周辺減光) → 上の帯 → 線 → 技(詳細データが上から) → 切 → 時 → 倍率 → 総合 → ため(暗くする) → ハンコ(上から押す・揺れ・墨のはね) → 新記録 → ボタン。約5秒。
+  - A でスキップ: 1回目はためまで、2回目は最後まで。ボタンが出たら A でステージセレクト、Y でリトライ(Now Loading を出して同じステージ)。
+  - ハンコは文字を1文字ずつ回して縦に並べる(`DrawRotaStringToHandle` の縦書きは回転の中心が合わなかった)。上のランクほど揺れと墨のはねが強い。墨は `ScreenBlood/splat_0〜2`。
+  - Windows の `DrawText` マクロとぶつかるので、文字を描く関数は `DrawLabel`。
+- 自己ベスト: `Save/BestScore.txt`(1行に「ステージ番号 スコア」)。超えたら「新記録」を出して保存。
+- **起動の引数 `-result`** でリザルトだけを仮の結果で開く(`ResultScene::MakeDebugData`。自己ベストは保存しない)。
+- 確認: Debug・Release のビルドは通った。`-result` で画面を撮り、出る順番・ハンコ・揺れを確認した。一時コードでステージ1を150Fで終わらせて、実際の記録(0 / 34体・2.50秒)が出ることも確認した(一時コードは消した)。
+- (追記)最初はゲームの最後の画面をぼかして背景にしていたが、ステージセレクトと同じ背景にした(見た目をそろえる・PNG に差し替えやすくするため)。画面の取り込み(`m_resultBgHandle`)と引数の bgHandle は削除。ドットは `m_bgFrame` で流すので、スキップしても飛ばない。あとでステージごとの背景 PNG にする案あり。**実際に遊んでクリアしての確認はまだ**(技の数え方が合っているか、リトライ)。
+
+### 2026-11-12 チュートリアルの設計(会話で決めた・まだ作っていない。ユーザーが自分で書く)
+- 方針: **遷移表(`PhaseStage〜.csv`)をチュートリアルの台本にする**。「いつ出すか」は PhaseManager、「何をどう見せるか」は TutorialScene。`TutorialManager` は作らない(待ちの列・「もう見た」の印・出してよいかの判定を別に持つと、遷移表と二重になるため)。
+  チュートリアルは専用のステージ(タスク表の「チュートリアルシーン」)なので、表の順に1回ずつ出るだけで「もう見た」の印は要らない。
+- 後ろを止めるのは PauseScene と同じく `PushScene`(SceneController は一番上だけ Update、全部 Draw)。SceneMain が止まるので、BattleManager・PhaseManager・エフェクトの更新とクリアタイムも止まる。タイムスケール0で止める案はやめた(実フレームで動くものが止まらない)。
+- 遷移表の書き方(列 `eventParam` / `eventDelay` を足す。eventDelay 空欄は0):
+  ```
+  #from,condition,param,intParam,to,event,eventParam,eventDelay
+  0,Start,,,1,Tutorial,Move,60     ← フェーズ1を始めて60F後に Move
+  1,AllDead,,,2,Tutorial,Attack,30
+  ```
+  待つためだけに Timer の行(=フェーズ)をはさむのはやめた(敵配置のフェーズ番号がずれる・敵のいないフェーズは AllDead がすぐ成り立つ)。
+- 流れ: CSV → `PhaseTransition::eventParam / eventDelay`(DataManager で読む) → `PhaseManager::ChangePhase` で `m_tutorialId` / `m_tutorialDelay` を覚える
+  → `IsTutorialReady()`(`!m_tutorialId.empty() && m_phaseFrame >= m_tutorialDelay`) → SceneMain の NormalUpdate の最後で、`IsTutorialReady() && CanOpenTutorial()` なら `PushScene(TutorialScene(controller, TakeTutorial()))`
+  → TutorialScene が `Tutorial.csv` の同じ id の行(ページ)を集めて表示、A で送って最後に `PopScene`。
+  - `PhaseEvent::Tutorial` を足す。`ChangePhase` は行ごと(`const PhaseTransition&`)受け取る形にする(F4 のデバッグの呼び出しは None の行を渡すか、今の版を残す)。
+  - **頼みは BattleManager ではなく PhaseManager に持たせる**: Start の行の ChangePhase は BattleManager を作る前に呼ばれ、`GetBattleMgr` の assert に当たるため。待つ数も `m_phaseFrame` をそのまま使える(実フレーム。ポーズ中は進まない)。
+  - `CanOpenTutorial()`: 血殺中(`GetIsUltimating`)・イベント中・暗殺・確殺の最中でないか(最後の1体を血殺・暗殺で倒すと演出の途中でフェーズが変わるため)。出せなければ頼みが残り、出せるようになったフレームで出る。
+  - Push は PhaseManager の Update の中でしない(リザルトの ResetScene と同じ理由)。
+  - 1つのフェーズで2回出したくなったら、そのとき頼みを1つから列にする。
+- `Tutorial.csv` の案: `#id,page,type(Image/Movie),file,title,text`。全部のチュートリアルを1つのファイルに書き、**1行=1ページ**。
+  ```
+  Move,0,Image,move.png,移動,左スティックで移動します
+  Move,1,Movie,move_dash.mp4,ダッシュ,RBを押しながら…
+  Attack,0,Movie,attack.mp4,攻撃,Xで弱攻撃、Yで強攻撃
+  Attack,1,Image,combo.png,コンボ,つなげると…
+  ```
+- **DataManager の読み込み**(PhaseFlow と同じ置き方):
+  - 1行分の構造体 `TutorialPageData { id, page, type, file, title, text }`(文字のまま)。
+  - `LoadTutorial()`: `LoadRawCsv` で1行ずつ分けて `m_tutorialPages` に詰める(起動時か SceneMain で1回)。
+  - `GetTutorialPages(id)`: `m_tutorialPages` から id が同じ行を集め、page の小さい順に `std::sort` して返す(例: "Attack" → 0,1 の2ページ)。
+  - DataManager は文字を返すだけで画像は読まない。`file` を `LoadGraph` で読んで自分の `Page`(ハンドル付き)に入れ、解放するのは TutorialScene。
+  - 簡単にするなら: CSV をページ順に書くと決めて、page の列と並べ替えをなくしてもよい(上から同じ id の行を集めるだけ)。
+- **TutorialScene の作り**(`Scene/TutorialScene.h/.cpp`、PauseScene と同じくメンバー関数ポインタで Update / Draw を切り替える):
+  - 流れ: コンストラクタ(id のページを集めて画像・動画を読む)→ FadeIn(10F で後ろを暗くしてパネルを出す。入力は見ない)→ Normal(A / 右で次、左で前、最後のページで A → FadeOut)→ FadeOut(10F で消して `PopScene`。この後はメンバーを触らない)→ デストラクタで `DeleteGraph`。
+  - メンバーの案: `struct Page { PageType type(Image/Movie); int handle; std::string title, text; }`、`std::vector<Page> m_pages`、`m_pageIndex`、`m_frame`(フェード用、実フレーム)。関数 `ChangePage(next)`(動画を止める・頭から流す)/ `UpdateMovie()`(ループ)/ `DrawPage(rate)`(rate=出具合0〜1。FadeIn / Normal / FadeOut の Draw はこれを rate を変えて呼ぶだけ)。
+  - ページは `DataManager::GetTutorialPages(id)`(同じ id の行を page 順に返す)。画像も動画も `LoadGraph` で読めるのでハンドルは1つ。数ページなので全部コンストラクタで読む。
+  - **入力は自分で `Input::GetInstance().Update()` を呼ぶ**(下の SceneMain が止まっているので。PauseScene の NormalUpdate と同じ)。
+  - 描画: 後ろの SceneMain は SceneController が先に描くので、黒を半透明で重ねて暗くする(PauseScene の NormalDraw と同じ)。パネル・見出し・画像/動画の枠・説明・「1 / 3」・下にボタンの説明(A 次へ / 最後は閉じる)。枠や文字は MenuUI の素材(frame9・游明朝・DrawTiled)を使い回すと見た目がそろう。
+  - 作る順番: 画像1枚・ページ送りなし・A で閉じる → Push / Pop と入力を確かめる → ページ送り → 動画。
+- 動画: `LoadGraph("〜.mp4")`(または OpenMovieToGraph) → `PlayMovieToGraph`、描くのは `DrawExtendGraph`。ページを離れるときは `PauseMovieToGraph`、入るときは `SeekMovieToGraph(h,0)` → 再生。ループは `GetMovieStateToGraph` が0(止まった)なら頭に戻して再生。読み込みは TutorialScene のコンストラクタ、解放はデストラクタ。mp4 がだめなら ogv。
+- 気をつけること: 閉じた A(や先行入力)がゲームに入らないか(必要なら閉じて数フレーム `SetInputBlocked`)、チュートリアル中に PauseScene が積まれないか。
+- 止めずにヒントを出す型(「Yで暗殺」を出したまま遊ばせ、やったら消える)は、あとで UIBase の UI として足す(消える条件は ResultRecorder の回数など)。
+
+### 2026-11-13 列車ステージの連結部のすき間を渡り板でふさいだ
+- 前は連結部(当たり判定の床が2m切れていた)に落ちると線路の高さ(y=-170)の見えない床に立っていた。7か所に渡り板を置いて落ちないようにした。コードは変えていない。
+- Unity の `TrainStageTool.cs` に `Tools > Train Stage > Add Gangway Plates` を足した。隣の車両の床(回っていない薄い当たり判定の箱)で、すき間(0.01〜3m)をはさんで向き合い高さがそろう端を探して、見た目と当たり判定の板を置く。
+  - 見た目は `grid_floor` を2m単位で貼った厚さ0.1mの板(メッシュは `Assets/TrainStage/Gangway/*.asset`)、当たり判定は厚さ0.35mの箱。両側のデッキに0.05m差し込む。どちらも `TrainStage/Gangway`・`TrainStage_Collision/Gangway` にまとめる。
+  - 押すたびに Gangway を消して作り直すので、車両を動かしたらもう一度押して 2. Export。
+- 置いたのは9枚: y=0 が7か所全部、上りスロープ–4両目と4両目–下りスロープは屋根の高さ(y=6.02、幅 x=±4)も。屋根の高さの板に手すりは無い(横から落ちても下の板に着く)。
+- 確認: `probe.exe` で TrainStageCol.mv1 の連結部(z=1950/4150/8397/10597/14844/17044/21291、x=0/600/-750)が全部 y=0(屋根の2か所の中央は y=602)。`preview.exe` で見た目もつながっている。**実際にゲームで歩いての確認はまだ**。
+
+### 2026-11-13 UIのフォントを1か所にまとめた(UIFont)
+- `UI/UIFont.h/.cpp`(vcxproj/filters に登録)。`UIFont::Create(size, thick, fontType, edgeSize)` が `CreateFontToHandle` の代わりで、フォント名は .cpp 先頭の `kFontName`(今は `游明朝`)。**フォントを変えるときはここだけ直す**。
+- 置き換えた所: `MenuUI`(ステージセレクト)、`ResultUI`、`AssasinTargetUI`、`GuardBreakChanceUI`(「ガードブレイク」の文字。Yの文字の Arial はそのまま)、`TitleScene`。**新しくUIで文字を出すときも `UIFont::Create` を使う**。
+- 一度 FOT-マティス(Adobe Fonts)にして画面で確認したが、ユーザーの判断で游明朝に戻した。見た目は前と同じ(太さもそのまま)。
+  - Adobe Fonts のフォントはアプリに入れて配れない(公式 FAQ)。使うなら、フォントを追加した PC でだけ表示される形になる。
+- Debug・Release のビルドは通った。
+
+### 2026-11-13 チュートリアルシーンの土台(TutorialScene)
+- `Scene/TutorialScene.h/.cpp`(vcxproj/filters に登録)。PauseScene と同じく `PushScene` で上に積み、自分で `Input::Update` する。FadeIn 15F(後ろを暗くする) → Normal(B でフェードアウト) → FadeOut 15F → `PopScene`。
+- 仮の入口: ステージセレクトで **Y** を押すと `"Move"` を積む。あとで SceneMain から id を渡して積む形にする。
+- (追記)**内容の読み込みとページ送り**:
+  - `data/Tutorial/Tutorial.csv`(Shift-JIS・CRLF、`#id,page,type,file,title,text`。説明に半角の `,` は使えない)と仮の画像 `move_0/move_1/attack_0.png`(640x360)。
+  - `DataLoader/TutorialPageData.h`(1行分)、`DataManager::LoadTutorial()` / `GetTutorialPages(id)`(id が同じ行を page 順に返す)。
+    **`LoadAll` は SceneMain::Init でしか呼ばれない**ので、ステージセレクトでも使えるように `Application::Init` の `LoadCommon` の後でも `LoadTutorial` を呼ぶ(LoadAll の中の呼び出しも残してあり、ステージに入るたびに読み直す)。
+  - `TutorialScene(controller, id)`: コンストラクタで画像を `LoadGraph`、デストラクタで `DeleteGraph`。id が CSV に無いと assert。
+  - A / → で次、← で前、最後のページの A と B で閉じる(`StartFadeOut`)。タイトル・画像(320,140 から 640x360)・説明・「1 / 2」・右下に操作。座標は画面のピクセルのまま(.cpp 先頭)。type(Movie)はまだ見ていない。
+- Debug(x64)でビルドは通った。起動してキーを送り、ステージセレクト → Y → 1/2 → A → 2/2 → ← → 1/2 → B で閉じる、を画面で確認した。
+
+### 2026-11-13 フェーズの進行でチュートリアルを開く(途中・ユーザーが実装中)
+- 目標: 列車ステージに入って60F後に「Move」を開く。遷移表の行 → PhaseManager が頼みを覚える → `m_phaseFrame` が待つ数に届いたら SceneMain が `PushScene`。
+- **済み**:
+  - 手順1: `data/Stage/PhaseFlow/PhaseStage004.csv`(列車)。見出しに `eventParam,eventDelay`、Start の行を `0,Start,,1,Tutorial,Move,60`。ほかの行は event の後ろの空の2列をそのまま使う。
+  - 手順2: `PhaseEvent::Tutorial`、`PhaseTransition::eventParam`(id) / `eventDelay`(フレーム)。
+  - 手順3の一部: `PhaseFlowColumn` に `EventParam` / `EventDelay`、`StringToPhaseEvent` に `"Tutorial"`。
+- **次(手順3の残り)**: `LoadPhaseFlow` で2列を読む。
+  - eventParam: `t.param = ...` の下で `tokens.size() > EventParam` なら入れる(空でもそのまま)。
+  - eventDelay: try の中(intParam の後)で `tokens.size() > EventDelay && !empty()` なら `std::stoi`(空の文字を stoi に渡すと catch で行ごと消える)。
+  - 確認: 列車ステージで Start の行の `ChangePhase` にブレークポイント。eventParam "Move"・eventDelay 60。
+- **手順4**: PhaseManager に頼みを持たせる。
+  - `ChangePhase(int next, PhaseEvent event, const std::string& eventParam = "", int eventDelay = 0)`(デフォルト付きなので F4 の2か所は直さない)。遷移表から呼ぶ2か所(Init の Start・Update)は `t.eventParam, t.eventDelay` も渡す。
+  - switch の `case PhaseEvent::Tutorial` で `m_tutorialId` / `m_tutorialDelay` に入れる。
+  - `IsTutorialReady()`(`!m_tutorialId.empty() && m_phaseFrame >= m_tutorialDelay`)、`TakeTutorial()`(id を返して空にする)。
+- **手順5**: `SceneMain::NormalUpdate` の最後、`GetIsBattleEnd()` の if の `else if` で `IsTutorialReady() && CanOpenTutorial()` なら `PushScene(TutorialScene(m_controller, TakeTutorial()))`。PhaseManager の Update の中では Push しない。
+  - `CanOpenTutorial()`(SceneMain の private): 血殺中・イベント中・暗殺中・確殺中は false(頼みは残り、終わったフレームで開く)。
+- **手順6**: 確認(約1秒後に出る・出ている間は全部止まる・閉じた A で攻撃しない・eventDelay 空欄ならすぐ出る)。確認が済んだらステージセレクトの Y の仮の入口を消す。
+- 注意: `StringToPhaseEvent` が "Tutorial" を知らないと Start の行が読み飛ばされ、列車ステージで「遷移表にStartの行がありません」の assert になる(今は足してあるので止まらないはず。未確認)。頼みは1つだけ(開く前に次の Tutorial のフェーズへ進むと上書き)。Tutorial.csv に無い id は開いたときに assert。
+
 ## 10/27 やること: 背中の腕の切り離し Step2〜
 **手順とコードは全部 `../進捗/背中の腕の切り離し_手順.md` に書いてある。** ここは順番と進み具合だけ。
 
@@ -1542,6 +1756,8 @@
 ---
 
 ## TODO / 次にやること
+- [ ] チュートリアル(11/12 の設計)を作る: PhaseFlowData に Tutorial と列2つ → DataManager で読む → PhaseManager の頼み → SceneMain で Push → TutorialScene(まず画像1枚、そのあと動画・ページ送り)
+- [ ] リザルト画面(11/12)を実際にクリアして確認: 技の回数が合っているか(スキル技が1回の技で何回も数えられないか)、リトライ、点数とランクの境目の調整、ステージごとの目標タイム、アイテム・死亡の仕組みができたら `ResultData` の itemUseCount / deathCount に入れる、音
 - [ ] 床の血の跡(11/08)をゲームで確認: 色・量・残る長さ、カメラが動いたときのちらつき、斜面と床の端、空中での出方- [ ] **ステージ1の曲がり角(11/07)をゲームで確認**: 7か所の角を走って通れるか、カメラが回りきるか、角の直後の壁走り(特に角1の先・角3の先・角5の先)の向き、角の外から建物の裏や空が見えないか、角4・角6の見張りを背中から暗殺できるか、スタートから角1までの約170mが長くないか
 - [ ] ガードブレイクのチャンスUIをゲームで確認。チャンスの長さを決める(今は `kChanceTime` 60F×スロー0.2で実時間約5秒。リングもこの長さで減る)、チャンス中の無敵を決める
 - [ ] ステージ1の仕上げ(11/06)をゲームで確認: 敵の増え方と谷の8体の戦いやすさ、小物に敵が引っかからないか、血殺の色変えが強すぎないか、スキル演出のカメラで建物の裏が欠けて見えないか
@@ -1599,7 +1815,7 @@
   - 座標: デッキ上面 y=0、原点=スタート(1両目の前寄り)。前からの距離u(m) → Z=(u-1.5)*100、X は組み立て時の符号の逆
   - 色: ステージとトンネルは `convert.exe flat` でキャラ・デモステージと同じ「拡散=色×0.1・環境=色×0.9・反射0.1」にしてある(ライトの向きで明るさが変わらず、敵とのなじみがデモステージと同じ)。色は build_train_stage.py の TINT_*、トンネルは build_all.sh の TUNNEL_DIF
   - 敵配置 `Enemies004.csv`・遷移 `PhaseStage004.csv`(A:1両目 → B:2・3両目 → C:4両目の屋根と5両目 → D:6両目 → GameClear)は仮。エリートは今 Swordman
-  - 列車の左右の縁(x=±800)と前後の端に、高さ1200の見えない壁を立てて外へ出られないようにしている。連結部のすき間に落ちると線路の高さ(y=-170)の見えない床に立つ
+  - 列車の左右の縁(x=±800)と前後の端に、高さ1200の見えない壁を立てて外へ出られないようにしている。連結部のすき間は渡り板(Unity の `Tools > Train Stage > Add Gangway Plates`、何度でも作り直せる)でふさいである。線路の高さの見えない床(当たり判定の Outer、上面 y=-150)は念のため残っている
   - 作り直し: `tools/TrainStage/build_all.sh 素材フォルダ [--corridor]`(Git Bash)。中身は prepare_corridor.py → build_train_stage.py → build_tunnel.py → `tools/FbxToMv1/export_x.py`(.x) → `convert.exe`(mv1)。ゲームのDxLibはFBXを読めないので .x 経由。`preview.exe` でゲームと同じライトの見た目を PNG に、`probe.exe` で当たり判定の高さ・法線を調べられる
   - **Unityで調整する(今後はこちらが本番)**: Unityプロジェクト `Desktop/programm/ninja_motion` の `Assets/Editor/TrainStageTool.cs`。
     `Tools > Train Stage > 1. Import From Game Data (Setup Scene)` で `data/Stage/TrainStage/TrainStage_Unity.fbx`・tex・トンネルを取り込んで `Assets/Scenes/TrainStageScene.unity` を作る(作り直すと調整は消える)。

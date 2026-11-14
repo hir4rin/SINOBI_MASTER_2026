@@ -4,6 +4,8 @@
 #include "Main/System.h"
 #include "../Camera/CameraManager.h"
 #include "Render/BloodDecalManager.h"
+#include "Battle/BattleManager.h"
+#include "Battle/ResultRecorder.h"
 
 
 namespace
@@ -35,6 +37,7 @@ void PlayerStateAirAssasin::Enter()
 	auto player = m_owner.lock();
 	if (!player) return;
 
+	if (auto recorder = System::GetInstance().GetBattleMgr()->GetResultRecorder().lock()) recorder->AddTechnique(ResultData::Technique::Assasin);
 	//空中暗殺:Assasin02->fromAvobeForwardVictim
 	player->m_anim.ChangeAnimWithModelHandle(player->m_modelHandle, player->GetAnimName("Assasin02"), false, 0.7f);
 	//スタートする
@@ -116,6 +119,7 @@ void PlayerStateAirAssasin::Update()
 		if (m_timer > kExecuteFrame)
 		{
 			assasinTarget->PlayFloorBlood(BloodAmount::Large);
+			System::GetInstance().GetBattleMgr()->RequestScreenBlood();
 
 
 			m_state = AssasinState::End;
