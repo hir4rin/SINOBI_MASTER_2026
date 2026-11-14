@@ -1,10 +1,10 @@
-frame 0 period 11.8ms: Update=2.9 Draw(rest)=0.2 ImGui=0.4 Flip=0.2 ImGui(out)=0.0 Wait=7.2
-frame 506 refresh +73 (1 Ç™ê≥èÌ)
-frame 507 total 1217.5ms: Update=1188.3 Draw:Bg=14.6 Draw:Stage=0.9 Draw:Enemy=0.1 Draw:Player=0.3 Draw:Effect=0.0 Draw:UI=0.2 Draw(rest)=0.0 ImGui=0.0 Flip=0.2 ImGui(out)=0.0 Wait=12.8
-frame 506 period 1217.6ms: Update=1188.3 Draw:Bg=14.6 Draw:Stage=0.9 Draw:Enemy=0.1 Draw:Player=0.3 Draw:Effect=0.0 Draw:UI=0.2 Draw(rest)=0.0 ImGui=0.0 Flip=0.2 ImGui(out)=0.0 Wait=12.8
-frame 507 refresh +2 (1 Ç™ê≥èÌ)
-frame 508 total 33.4ms: Upd:Before=0.1 Upd:Player=0.1 Upd:Enemy=0.0 Upd:Collision=0.1 Update=0.0 Draw:Bg=0.0 Draw:Stage=0.1 Draw:Enemy=0.0 Draw:Player=0.0 Draw:Effect=0.0 Draw:UI=0.0 Draw(rest)=0.0 ImGui=0.0 Flip=26.5 ImGui(out)=0.0 Wait=6.4
-frame 507 period 33.4ms: Upd:Before=0.1 Upd:Player=0.1 Upd:Enemy=0.0 Upd:Collision=0.1 Update=0.0 Draw:Bg=0.0 Draw:Stage=0.1 Draw:Enemy=0.0 Draw:Player=0.0 Draw:Effect=0.0 Draw:UI=0.0 Draw(rest)=0.0 ImGui=0.0 Flip=26.5 ImGui(out)=0.0 Wait=6.4
-frame 14773 refresh +3 (1 Ç™ê≥èÌ)
-frame 14774 total 50.0ms: Update=40.0 Draw(rest)=0.0 ImGui=0.0 Flip=0.1 ImGui(out)=0.0 Wait=9.7
-frame 14773 period 50.0ms: Update=40.0 Draw(rest)=0.0 ImGui=0.0 Flip=0.1 ImGui(out)=0.0 Wait=9.7
+frame 0 period 13.9ms: Update=3.3 Draw(rest)=0.2 ImGui=0.4 Flip=0.2 ImGui(out)=0.0 Wait=8.8
+frame 191 refresh +2 (1 Ç™ê≥èÌ)
+frame 192 total 33.3ms: Update=24.8 Draw(rest)=4.5 ImGui=0.0 Flip=0.8 ImGui(out)=0.0 Wait=3.1
+frame 191 period 33.3ms: Update=24.8 Draw(rest)=4.5 ImGui=0.0 Flip=0.8 ImGui(out)=0.0 Wait=3.1
+frame 317 refresh +64 (1 Ç™ê≥èÌ)
+frame 318 total 1067.5ms: Update=1063.3 Draw:Bg=0.0 Draw:Stage=0.3 Draw:Enemy=0.2 Draw:Player=0.3 Draw:Effect=0.0 Draw:UI=0.1 Draw(rest)=0.0 ImGui=0.0 Flip=0.1 ImGui(out)=0.0 Wait=3.3
+frame 317 period 1067.5ms: Update=1063.3 Draw:Bg=0.0 Draw:Stage=0.3 Draw:Enemy=0.2 Draw:Player=0.3 Draw:Effect=0.0 Draw:UI=0.1 Draw(rest)=0.0 ImGui=0.0 Flip=0.1 ImGui(out)=0.0 Wait=3.3
+frame 318 refresh +2 (1 Ç™ê≥èÌ)
+frame 319 total 33.3ms: Upd:Before=0.1 Upd:Player=0.1 Upd:Enemy=0.0 Upd:Collision=0.1 Update=0.0 Draw:Bg=0.0 Draw:Stage=0.1 Draw:Enemy=0.1 Draw:Player=0.3 Draw:Effect=0.0 Draw:UI=0.2 Draw(rest)=0.0 ImGui=0.1 Flip=25.4 ImGui(out)=0.0 Wait=6.9
+frame 318 period 33.3ms: Upd:Before=0.1 Upd:Player=0.1 Upd:Enemy=0.0 Upd:Collision=0.1 Update=0.0 Draw:Bg=0.0 Draw:Stage=0.1 Draw:Enemy=0.1 Draw:Player=0.3 Draw:Effect=0.0 Draw:UI=0.2 Draw(rest)=0.0 ImGui=0.1 Flip=25.4 ImGui(out)=0.0 Wait=6.9
